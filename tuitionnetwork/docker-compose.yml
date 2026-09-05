@@ -1,13 +1,12 @@
 services:
   postgres:
     image: postgres:16
-    container_name: tuitionnetwork-postgres
     environment:
       POSTGRES_DB: tuition
       POSTGRES_USER: tuition
       POSTGRES_PASSWORD: tuition
     ports:
-      - "5433:5432"
+      - "127.0.0.1:${POSTGRES_PORT:-5433}:5432"
     volumes:
       - tuitionnetwork-postgres-data:/var/lib/postgresql/data
     healthcheck:
@@ -17,30 +16,30 @@ services:
       retries: 10
 
   pgadmin:
-    image: dpage/pgadmin4:latest
-    container_name: tuitionnetwork-pgadmin
+    image: dpage/pgadmin4@sha256:2f4ce946ddf8360680d7eff4eaba1d91859eb6b4003e6623bad5c63a322c2f4d
     environment:
       PGADMIN_DEFAULT_EMAIL: admin@tuitionnetwork.dev
       PGADMIN_DEFAULT_PASSWORD: tuition
       PGADMIN_CONFIG_SERVER_MODE: "False"
     ports:
-      - "5051:80"
+      - "127.0.0.1:${PGADMIN_PORT:-5051}:80"
     volumes:
       - tuitionnetwork-pgadmin-data:/var/lib/pgadmin
-      - ./pgadmin/servers.json:/pgadmin4/servers.json:ro
+    configs:
+      - source: pgadmin-servers
+        target: /pgadmin4/servers.json
     depends_on:
       postgres:
         condition: service_healthy
 
   app:
     build: .
-    container_name: tuitionnetwork-app
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/tuition
       SPRING_DATASOURCE_USERNAME: tuition
       SPRING_DATASOURCE_PASSWORD: tuition
     ports:
-      - "8080:8080"
+      - "127.0.0.1:${APP_PORT:-8080}:8080"
     depends_on:
       postgres:
         condition: service_healthy
@@ -48,3 +47,8 @@ services:
 volumes:
   tuitionnetwork-postgres-data:
   tuitionnetwork-pgadmin-data:
+
+configs:
+  pgadmin-servers:
+    content: |
+      {"Servers":{"1":{"Name":"Tuitionnetwork (local)","Group":"Servers","Host":"postgres","Port":5432,"MaintenanceDB":"tuition","Username":"tuition","SSLMode":"prefer"}}}

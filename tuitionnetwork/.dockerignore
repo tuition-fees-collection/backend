@@ -4,3 +4,5 @@ run.log
 .git/
 .idea/
 *.iml
+.env
+.env.*

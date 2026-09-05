@@ -32,21 +32,18 @@ services:
       postgres:
         condition: service_healthy
 
-# The "app" service isn't added yet — it needs a Dockerfile first (that's the
-# other half of this split). Once it exists, add:
-#
-#  app:
-#    build: .
-#    container_name: tuitionnetwork-app
-#    environment:
-#      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/tuition
-#      SPRING_DATASOURCE_USERNAME: tuition
-#      SPRING_DATASOURCE_PASSWORD: tuition
-#    ports:
-#      - "8080:8080"
-#    depends_on:
-#      postgres:
-#        condition: service_healthy
+  app:
+    build: .
+    container_name: tuitionnetwork-app
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/tuition
+      SPRING_DATASOURCE_USERNAME: tuition
+      SPRING_DATASOURCE_PASSWORD: tuition
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
 
 volumes:
   tuitionnetwork-postgres-data:

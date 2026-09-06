@@ -1,5 +1,5 @@
 package com.tuitionnetwork.tuitionnetwork.payment.domain;
 
-public class paymentSagaStep {
+public class PaymentSagaStep {
     
 }

@@ -3,5 +3,4 @@ public enum paymentMethod {
         Cash,
         Credit_Card,
         Debit_Card
-    
 }

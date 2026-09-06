@@ -15,7 +15,7 @@ import jakarta.persistence.Table;
 import jakarta.persistence.Version;
 
 @Entity
-@Table(name = "payment")
+@Table(name = "payment",schema = "payments")
 public class Payment {
 @Id
 @GeneratedValue

@@ -1,5 +1,7 @@
 package com.tuitionnetwork.tuitionnetwork.payment.domain;
-
-public class paymentmethod {
+public enum paymentMethod {
+        Cash,
+        Credit_Card,
+        Debit_Card
     
 }

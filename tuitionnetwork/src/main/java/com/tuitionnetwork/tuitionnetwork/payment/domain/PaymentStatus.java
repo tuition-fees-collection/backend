@@ -5,5 +5,4 @@ public enum PaymentStatus {
     AUTHORIZED, // Payment has been authorized but not yet captured
     CAPTURED,   // Payment has been captured
     DECLINED,   //BANK SAID NO
-
 }

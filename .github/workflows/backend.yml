@@ -36,6 +36,7 @@ jobs:
           cache: maven
           cache-dependency-path: tuitionnetwork/pom.xml
       - run: sh mvnw -B clean verify
+        env:
+          DB_PORT: 5433
       - run: docker build -t tuitionnetwork:ci .
-      - env:
-        DB_PORT: 5433
+      

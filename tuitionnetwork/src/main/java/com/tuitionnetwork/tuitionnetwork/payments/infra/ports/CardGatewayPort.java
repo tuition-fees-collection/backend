@@ -12,10 +12,5 @@ public interface CardGatewayPort {
 
     CardPaymentResponse capture(String gatewayPaymentId, BigDecimal amount);
 
-
-    CardPaymentResponse refund(String gatewayPaymentId, BigDecimal amount);
-
-    CardPaymentResponse voidPayment(String gatewayPaymentId);
-
     CardPaymentResponse confirm3ds(String gatewayPaymentId, String otp);
 }

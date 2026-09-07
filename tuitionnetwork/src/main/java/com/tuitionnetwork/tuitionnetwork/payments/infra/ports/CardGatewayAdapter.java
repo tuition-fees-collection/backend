@@ -3,7 +3,6 @@ package com.tuitionnetwork.tuitionnetwork.payments.infra.ports;
 import com.tuitionnetwork.tuitionnetwork.payments.infra.ports.bankmock.CaptureRequest;
 import com.tuitionnetwork.tuitionnetwork.payments.infra.ports.bankmock.CardPaymentRequest;
 import com.tuitionnetwork.tuitionnetwork.payments.infra.ports.bankmock.CardPaymentResponse;
-import com.tuitionnetwork.tuitionnetwork.payments.infra.ports.bankmock.RefundRequest;
 import com.tuitionnetwork.tuitionnetwork.payments.infra.ports.bankmock.ThreeDSConfirmRequest;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
@@ -35,23 +34,6 @@ public class CardGatewayAdapter implements CardGatewayPort {
         return bankMockRestClient.post()
                 .uri("/api/v1/payments/cards/{id}/capture", gatewayPaymentId)
                 .body(new CaptureRequest(amount))
-                .retrieve()
-                .body(CardPaymentResponse.class);
-    }
-
-    @Override
-    public CardPaymentResponse refund(String gatewayPaymentId, BigDecimal amount) {
-        return bankMockRestClient.post()
-                .uri("/api/v1/payments/cards/{id}/refund", gatewayPaymentId)
-                .body(new RefundRequest(amount, null))
-                .retrieve()
-                .body(CardPaymentResponse.class);
-    }
-
-    @Override
-    public CardPaymentResponse voidPayment(String gatewayPaymentId) {
-        return bankMockRestClient.post()
-                .uri("/api/v1/payments/cards/{id}/void", gatewayPaymentId)
                 .retrieve()
                 .body(CardPaymentResponse.class);
     }

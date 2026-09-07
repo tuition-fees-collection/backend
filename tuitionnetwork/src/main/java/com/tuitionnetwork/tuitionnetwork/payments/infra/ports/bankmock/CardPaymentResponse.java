@@ -5,7 +5,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import java.math.BigDecimal;
 import java.util.Map;
 
-/** status: AUTHORISED | CAPTURED | PENDING_3DS | DECLINED | REFUNDED | PARTIALLY_REFUNDED | VOIDED */
+// AUTHORISED | CAPTURED | PENDING_3DS | DECLINED 
+
 public record CardPaymentResponse(
         @JsonProperty("payment_id") String paymentId,
         String status,
@@ -13,7 +14,6 @@ public record CardPaymentResponse(
         BigDecimal amount,
         String currency,
         @JsonProperty("captured_amount") BigDecimal capturedAmount,
-        @JsonProperty("refunded_amount") BigDecimal refundedAmount,
         @JsonProperty("order_reference") String orderReference,
         CardSummary card,
         @JsonProperty("auth_code") String authCode,

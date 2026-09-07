@@ -38,6 +38,7 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/tuition
       SPRING_DATASOURCE_USERNAME: tuition
       SPRING_DATASOURCE_PASSWORD: tuition
+      BANKMOCK_BASE_URL: http://host.docker.internal:8000
     ports:
       - "127.0.0.1:${APP_PORT:-8080}:8080"
     depends_on:

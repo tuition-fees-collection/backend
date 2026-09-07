@@ -5,9 +5,5 @@ public enum PaymentStatus {
     AUTHORIZED, // Payment has been authorized but not yet captured
     CAPTURED,   // Payment has been captured
     DECLINED,   //BANK SAID NO
-    VOIDED,     //CANCELLED BEFORE MONEY WAS TOKEN
-    FAILED,     //MONEY WAS NOT TAKEN
-    REFUNDED,   // MONEY WAS TAKEN AND RETURNED TO THE CUSTOMER
-    EXPIRED,    // PAYMENT WAS NOT COMPLETED IN TIME
-    
+
 }

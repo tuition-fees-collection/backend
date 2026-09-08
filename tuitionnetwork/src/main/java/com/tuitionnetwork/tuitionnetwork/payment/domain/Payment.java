@@ -55,8 +55,6 @@ private String maskedCardNumber;
 private String cardScheme;
 @Column(name ="captured_amount")
 private BigDecimal capturedAmount;
-@Column(name ="refunded_amount")
-private BigDecimal refundedAmount;
 @Column(name ="created_at")
 private Instant createdAt;
 @Column(name = "updated_at")
@@ -214,15 +212,6 @@ private Integer version;
     public void setCapturedAmount(BigDecimal capturedAmount) {
         this.capturedAmount = capturedAmount;
     }
-
-    public BigDecimal getRefundedAmount() {
-        return this.refundedAmount;
-    }
-
-    public void setRefundedAmount(BigDecimal refundedAmount) {
-        this.refundedAmount = refundedAmount;
-    }
-
     public Instant getCreatedAt() {
         return this.createdAt;
     }

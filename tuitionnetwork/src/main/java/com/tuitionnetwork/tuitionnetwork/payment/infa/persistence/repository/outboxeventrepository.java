@@ -1,4 +1,4 @@
-package com.tuitionnetwork.tuitionnetwork.payment.infa.persistence;
+package com.tuitionnetwork.tuitionnetwork.payment.infa.persistence.repository;
 import org.springframework.data.jpa.repository.JpaRepository;
 import com.tuitionnetwork.tuitionnetwork.payment.domain.OutboxEvent;
 import java.util.List;

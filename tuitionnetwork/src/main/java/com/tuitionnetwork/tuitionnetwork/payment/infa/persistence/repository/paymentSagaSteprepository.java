@@ -1,4 +1,4 @@
-package com.tuitionnetwork.tuitionnetwork.payment.infa.persistence;
+package com.tuitionnetwork.tuitionnetwork.payment.infa.persistence.repository;
 
 import java.util.List;
 import java.util.Optional;

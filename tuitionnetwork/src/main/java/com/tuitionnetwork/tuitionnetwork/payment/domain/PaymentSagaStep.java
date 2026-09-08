@@ -3,6 +3,8 @@ import java.time.Instant;
 import java.util.UUID;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
@@ -14,10 +16,12 @@ public class PaymentSagaStep {
 private UUID id;
 @Column (name = "payment_id", nullable = false)
     private UUID paymentId;
-@Column(name="step_name", nullable = false, length =50)
-    private PaymentSagaStepType stepName;
+@Enumerated(EnumType.STRING)
+@Column(name = "step_name", nullable = false, length = 50)
+private PaymentSagaStepType stepName;
+@Enumerated(EnumType.STRING)
 @Column(nullable = false, length = 20)
-   private PaymentSagaStepStatus status = PaymentSagaStepStatus.PENDING;
+private PaymentSagaStepStatus status = PaymentSagaStepStatus.PENDING;
 @Column(name="attempted_at")
 private Instant attemptedAt; 
 @Column(name="completed_at")

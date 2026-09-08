@@ -29,10 +29,10 @@ public class OutboxEvent {
     private String eventType;
     @Column ( nullable = false, columnDefinition = "TEXT")
     private String payload;
-    @Enumerated(EnumType.STRING)
-    @Column ( nullable = false)
+   @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
     private Status status = Status.PENDING;
-     @Column ( name= "created_at")
+     @Column ( name= "created_at",nullable = false)
      private Instant createdAt;
      @Column (name= "published_at")
      private Instant publishedAt;

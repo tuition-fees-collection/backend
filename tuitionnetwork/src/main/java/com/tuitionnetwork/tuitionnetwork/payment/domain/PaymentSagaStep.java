@@ -14,69 +14,86 @@ public class PaymentSagaStep {
 private UUID id;
 @Column (name = "payment_id", nullable = false)
     private UUID paymentId;
-@Column(name="step_name", nullable = false)
-    private String stepName;
-@Column(nullable = false)
-    private String status;
+@Column(name="step_name", nullable = false, length =50)
+    private PaymentSagaStepType stepName;
+@Column(nullable = false, length = 20)
+   private PaymentSagaStepStatus status = PaymentSagaStepStatus.PENDING;
 @Column(name="attempted_at")
 private Instant attemptedAt; 
 @Column(name="completed_at")
 private Instant completedAt;
-@Column (name="error_message")
+@Column (name="error_message", columnDefinition = "TEXT")
 private String errorMessage;
-    public UUID getId() {
-        return this.id;
+
+    protected PaymentSagaStep() {
     }
 
-    public void setId(UUID id) {
-        this.id = id;
+    public static PaymentSagaStep plan(UUID paymentId, PaymentSagaStepType stepName) {
+        PaymentSagaStep step = new PaymentSagaStep();
+        step.paymentId = paymentId;
+        step.stepName = stepName;
+        step.status = PaymentSagaStepStatus.PENDING;
+        return step;
     }
-
-    public UUID getPaymentId() {
-        return this.paymentId;
+      public void start(Instant now) {
+        requireNotFinished();
+        this.status = PaymentSagaStepStatus.IN_PROGRESS;
+        this.attemptedAt = now;
     }
-
-    public void setPaymentId(UUID paymentId) {
-        this.paymentId = paymentId;
+ 
+    public void complete(Instant now) {
+        requireNotFinished();
+        this.status = PaymentSagaStepStatus.COMPLETED;
+        this.completedAt = now;
+        this.errorMessage = null;
     }
-
-    public String getStepName() {
-        return this.stepName;
+ 
+    public void fail(String reason, Instant now) {
+        requireNotFinished();
+        this.status = PaymentSagaStepStatus.FAILED;
+        this.completedAt = now;
+        this.errorMessage = reason;
     }
-
-    public void setStepName(String stepName) {
-        this.stepName = stepName;
+ 
+    public void skip(String reason, Instant now) {
+        requireNotFinished();
+        this.status = PaymentSagaStepStatus.SKIPPED;
+        this.completedAt = now;
+        this.errorMessage = reason;
     }
-
-    public String getStatus() {
-        return this.status;
+ 
+    private void requireNotFinished() {
+        if (status != null && status.isFinished()) {
+            throw new IllegalStateException(
+                    "Saga step " + stepName + " on payment " + paymentId + " is already " + status);
+        }
     }
-
-    public void setStatus(String status) {
-        this.status = status;
+ 
+    
+    public boolean isUnresolvedCharge() {
+        return stepName != null && stepName.isMoneyMoving()
+                && status == PaymentSagaStepStatus.IN_PROGRESS;
     }
-
-    public Instant getAttemptedAt() {
-        return this.attemptedAt;
+ 
+    public UUID getId() { 
+        return id; 
     }
-
-    public void setAttemptedAt(Instant attemptedAt) {
-        this.attemptedAt = attemptedAt;
+    public UUID getPaymentId() { 
+        return paymentId;
+     }
+    public PaymentSagaStepType getStepName() {
+         return stepName; 
+        }
+    public PaymentSagaStepStatus getStatus() {
+         return status; 
+        }
+    public Instant getAttemptedAt() { 
+        return attemptedAt; 
     }
-
-    public Instant getCompletedAt() {
-        return this.completedAt;
+    public Instant getCompletedAt() { 
+        return completedAt; 
     }
-
-    public void setCompletedAt(Instant completedAt) {
-        this.completedAt = completedAt;
-    }
-
     public String getErrorMessage() {
-        return this.errorMessage;
-    }
-
-    public void setErrorMessage(String errorMessage) {
-        this.errorMessage = errorMessage;
-    }
+         return errorMessage; 
+        }
 }

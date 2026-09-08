@@ -1,6 +1,7 @@
 package com.tuitionnetwork.tuitionnetwork.payment.domain;
 
 import java.math.BigDecimal;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.UUID;
 import jakarta.persistence.Column;
@@ -17,6 +18,10 @@ import jakarta.persistence.Version;
 @Entity
 @Table(name = "payment",schema = "payments")
 public class Payment {
+    //constansts so payment expires after 15 minutes if not completed, to avoid stale payments
+ public static final Duration ORDER_VALIDITY = Duration.ofMinutes(15);
+ //set a max length for response message to avoid database errors
+ private static final int RESPONSE_MESSAGE_MAX = 255;
 @Id
 @GeneratedValue
 private UUID id;
@@ -34,28 +39,28 @@ private PaymentMethod method;
 @Enumerated(EnumType.STRING)
 @Column(name = "payment_type", nullable = false)
 private PaymentType paymentType;
-@Column(nullable=false)
+@Column(nullable=false, precision=12, scale=2)
 private BigDecimal amount;
-@Column(nullable=false)
-private String currency;
+@Column(nullable=false, length=3)
+private String currency = "EGP";
 @Enumerated(EnumType.STRING)
-@Column(nullable=false)
-private PaymentStatus status;
-@Column(name ="auth_code")
+@Column(nullable=false, length = 20)
+private PaymentStatus status = PaymentStatus.CREATED;
+@Column(name ="auth_code", length = 50)
 private String authCode;
-@Column(name ="rrn")
+@Column(name ="rrn", length = 50)
 private String rrn;
-@Column(name ="response_code")
+@Column(name ="response_code", length = 10)
 private String responseCode;
-@Column(name ="response_message")
+@Column(name ="response_message", length = RESPONSE_MESSAGE_MAX)
 private String responseMessage;
-@Column(name ="masked_card_number")
+@Column(name ="masked_card_number", length = 30)
 private String maskedCardNumber;
-@Column(name ="card_scheme")
+@Column(name ="card_scheme", length = 20)
 private String cardScheme;
-@Column(name ="captured_amount")
+@Column(name ="captured_amount", precision = 12, scale = 2)
 private BigDecimal capturedAmount;
-@Column(name ="created_at")
+@Column(name ="created_at", nullable = false)
 private Instant createdAt;
 @Column(name = "updated_at")
 private Instant updatedAt;
@@ -63,12 +68,54 @@ private Instant updatedAt;
 private Instant settledAt;
 @Version
 private Integer version;
-
+protected Payment() {
+    } 
+// method enforcing validation before constructing object
+public static Payment create(String idempotencyKey,
+                                 UUID guardianId,
+                                 UUID processedBy,
+                                 PaymentMethod method,
+                                 PaymentType paymentType,
+                                 BigDecimal amount,
+                                 String currency) {
+        if (idempotencyKey == null || idempotencyKey.trim().isEmpty()) {
+            throw new IllegalArgumentException("idempotencyKey must not be blank");
+        }
+        if (guardianId == null) {
+            throw new IllegalArgumentException("guardianId is required");
+        }
+        if (processedBy == null) {
+            throw new IllegalArgumentException(
+                    "processedBy is NOT NULL in the schema; must be provided");
+        }
+        if (amount == null || amount.signum() <= 0) {
+            throw new IllegalArgumentException("Payment amount must be greater than zero");
+        }
+        if (amount.scale() > 2) {
+            throw new IllegalArgumentException("Payment amount must not exceed 2 decimal places");
+        }
+        //make object 
+        Payment payment = new Payment();
+        payment.idempotencyKey = idempotencyKey;
+        payment.guardianId = guardianId;
+        payment.processedBy = processedBy;
+        payment.method = method;
+        payment.paymentType = paymentType;
+        payment.amount = amount;
+        payment.currency = (currency == null || currency.trim().isEmpty()) ? "EGP" : currency;
+        payment.status = PaymentStatus.CREATED;
+        return payment;
+    }
     @PrePersist
     protected void onCreate() {
         Instant now = Instant.now();
-        createdAt = now;
+        if (createdAt == null) {
+            createdAt = now;
+        }
         updatedAt = now;
+        if (status == null) {
+            status = PaymentStatus.CREATED;
+        }
     }
 
     @PreUpdate
@@ -76,172 +123,165 @@ private Integer version;
         updatedAt = Instant.now();
     }
        
-
-    public UUID getId() {
-        return this.id;
+  public void markSuccessful(String gatewayPaymentId,
+                               BigDecimal capturedAmount,
+                               String authCode,
+                               String rrn,
+                               String responseCode,
+                               String responseMessage,
+                               String maskedCardNumber,
+                               String cardScheme) {
+        applyGatewayResponse(gatewayPaymentId, capturedAmount, authCode, rrn,
+                responseCode, responseMessage, maskedCardNumber, cardScheme);
+        transitionTo(PaymentStatus.SUCCESSFUL);
+        this.settledAt = Instant.now();
     }
-
-    public void setId(UUID id) {
-        this.id = id;
+ public void markSuccessfulCash() {
+        this.capturedAmount = this.amount;
+        transitionTo(PaymentStatus.SUCCESSFUL);
+        this.settledAt = Instant.now();
     }
-
-    public String getIdempotencyKey() {
-        return this.idempotencyKey;
+    public void markFailed(String reason, String responseCode) {
+        setResponseMessage(reason);
+        if (responseCode != null) {
+            this.responseCode = responseCode;
+        }
+        transitionTo(PaymentStatus.FAILED);
     }
-
-    public void setIdempotencyKey(String idempotencyKey) {
-        this.idempotencyKey = idempotencyKey;
+     public void flagForReconciliation(String reason) {
+        setResponseMessage(reason);
+        transitionTo(PaymentStatus.RECON_REQUIRED);
     }
-
-    public String getGatewayPaymentId() {
-        return this.gatewayPaymentId;
+    public void resolveReconciliation(PaymentStatus resolution, String gatewayPaymentId) {
+        if (status != PaymentStatus.RECON_REQUIRED) {
+            throw new IllegalStateException("Only a flagged payment can be reconciled");
+        }
+        if (resolution == PaymentStatus.SUCCESSFUL) {
+            if (gatewayPaymentId != null) {
+                this.gatewayPaymentId = gatewayPaymentId;
+            }
+            transitionTo(PaymentStatus.SUCCESSFUL);
+            this.settledAt = Instant.now();
+        } else if (resolution == PaymentStatus.FAILED) {
+            transitionTo(PaymentStatus.FAILED);
+        } else {
+            throw new IllegalArgumentException("Reconciliation resolves to SUCCESSFUL or FAILED only");
+        }
     }
-
-    public void setGatewayPaymentId(String gatewayPaymentId) {
+    private void transitionTo(PaymentStatus target) {
+        if (!status.canTransitionTo(target)) {
+            throw new IllegalPaymentTransitionException(id, status, target);
+        }
+        this.status = target;
+    }
+ 
+    private void applyGatewayResponse(String gatewayPaymentId, BigDecimal capturedAmount,
+                                      String authCode, String rrn, String responseCode,
+                                      String responseMessage, String maskedCardNumber,
+                                      String cardScheme) {
+        if (gatewayPaymentId != null) this.gatewayPaymentId = gatewayPaymentId;
+        if (capturedAmount != null) this.capturedAmount = capturedAmount;
+        if (authCode != null) this.authCode = authCode;
+        if (rrn != null) this.rrn = rrn;
+        if (responseCode != null) this.responseCode = responseCode;
+        if (maskedCardNumber != null) this.maskedCardNumber = maskedCardNumber;
+        if (cardScheme != null) this.cardScheme = cardScheme;
+        setResponseMessage(responseMessage);
+    }
+     private void setResponseMessage(String message) {
+        if (message == null) {
+            return;
+        }
+        this.responseMessage = message.length() > RESPONSE_MESSAGE_MAX
+                ? message.substring(0, RESPONSE_MESSAGE_MAX)
+                : message;
+    }
+ 
+    // Set once, when the gateway first answers with an id, before the outcome is known. 
+    public void attachGatewayPaymentId(String gatewayPaymentId) {
         this.gatewayPaymentId = gatewayPaymentId;
+    } 
+    //add 15 mins
+  public Instant getExpiresAt() {
+        return createdAt == null ? null : createdAt.plus(ORDER_VALIDITY);
     }
-
-    public UUID getGuardianId() {
-        return this.guardianId;
+ //check lw 3adah 15 mins
+    public boolean isExpired(Instant now) {
+        Instant expiry = getExpiresAt();
+        return status == PaymentStatus.CREATED && expiry != null && now.isAfter(expiry);
     }
-
-    public void setGuardianId(UUID guardianId) {
-        this.guardianId = guardianId;
+ 
+    //A receipt exists only for a confirmed payment
+    public boolean isReceiptEligible() {
+        return status.isSettled();
     }
-
+ 
+    //** EPP needs a credit card and a confirmed charge 
+    public boolean isEppEligible() {
+        return status.isSettled() && method != null && method.isEppEligible();
+    }
+ 
+    public UUID getId() { 
+        return id; 
+    }
+    public String getIdempotencyKey() { 
+        return idempotencyKey;
+     }
+    public String getGatewayPaymentId() { 
+        return gatewayPaymentId;
+     }
+    public UUID getGuardianId() { 
+        return guardianId; 
+    }
     public UUID getProcessedBy() {
-        return this.processedBy;
+         return processedBy; 
+        }
+    public PaymentMethod getMethod() { 
+        return method; 
     }
-
-    public void setProcessedBy(UUID processedBy) {
-        this.processedBy = processedBy;
-    }
-
-    public PaymentMethod getMethod() {
-        return this.method;
-    }
-
-    public void setMethod(PaymentMethod method) {
-        this.method = method;
-    }
-
     public PaymentType getPaymentType() {
-        return this.paymentType;
-    }
-
-    public void setPaymentType(PaymentType paymentType) {
-        this.paymentType = paymentType;
-    }
-
+         return paymentType;
+         }
     public BigDecimal getAmount() {
-        return this.amount;
+         return amount; 
+        }
+    public String getCurrency() { 
+        return currency; 
     }
-
-    public void setAmount(BigDecimal amount) {
-        this.amount = amount;
+    public PaymentStatus getStatus() { 
+        return status;
+     }
+    public String getAuthCode() { 
+        return authCode; 
     }
-
-    public String getCurrency() {
-        return this.currency;
+    public String getRrn() { 
+        return rrn; 
     }
-
-    public void setCurrency(String currency) {
-        this.currency = currency;
-    }
-
-    public PaymentStatus getStatus() {
-        return this.status;
-    }
-
-    public void setStatus(PaymentStatus status) {
-        this.status = status;
-    }
-
-    public String getAuthCode() {
-        return this.authCode;
-    }
-
-    public void setAuthCode(String authCode) {
-        this.authCode = authCode;
-    }
-
-    public String getRrn() {
-        return this.rrn;
-    }
-
-    public void setRrn(String rrn) {
-        this.rrn = rrn;
-    }
-
-    public String getResponseCode() {
-        return this.responseCode;
-    }
-
-    public void setResponseCode(String responseCode) {
-        this.responseCode = responseCode;
-    }
-
+    public String getResponseCode() { 
+        return responseCode;
+     }
     public String getResponseMessage() {
-        return this.responseMessage;
+         return responseMessage; 
+        }
+    public String getMaskedCardNumber() { 
+        return maskedCardNumber;
+     }
+    public String getCardScheme() { 
+        return cardScheme; 
     }
-
-    public void setResponseMessage(String responseMessage) {
-        this.responseMessage = responseMessage;
-    }
-
-    public String getMaskedCardNumber() {
-        return this.maskedCardNumber;
-    }
-
-    public void setMaskedCardNumber(String maskedCardNumber) {
-        this.maskedCardNumber = maskedCardNumber;
-    }
-
-    public String getCardScheme() {
-        return this.cardScheme;
-    }
-
-    public void setCardScheme(String cardScheme) {
-        this.cardScheme = cardScheme;
-    }
-
     public BigDecimal getCapturedAmount() {
-        return this.capturedAmount;
+         return capturedAmount; 
+        }
+    public Instant getCreatedAt() { 
+        return createdAt; 
     }
-
-    public void setCapturedAmount(BigDecimal capturedAmount) {
-        this.capturedAmount = capturedAmount;
+    public Instant getUpdatedAt() { 
+        return updatedAt; 
     }
-    public Instant getCreatedAt() {
-        return this.createdAt;
-    }
-
-    public void setCreatedAt(Instant createdAt) {
-        this.createdAt = createdAt;
-    }
-
-    public Instant getUpdatedAt() {
-        return this.updatedAt;
-    }
-
-    public void setUpdatedAt(Instant updatedAt) {
-        this.updatedAt = updatedAt;
-    }
-
     public Instant getSettledAt() {
-        return this.settledAt;
-    }
-
-    public void setSettledAt(Instant settledAt) {
-        this.settledAt = settledAt;
-    }
-
+         return settledAt; 
+        }
     public Integer getVersion() {
-        return this.version;
-    }
-
-    public void setVersion(Integer version) {
-        this.version = version;
-    }
-
+         return version; 
+        }
 }

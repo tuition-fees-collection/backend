@@ -3,81 +3,87 @@ import java.time.Instant;
 import java.util.UUID;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.Id;
+import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 @Entity
 @Table(name = "outbox_event",schema = "payments")
 public class OutboxEvent {
+      public enum Status {
+        // Written, not yet published. Matches the schema default.
+        PENDING,
+        //Successfully sent 
+        PUBLISHED,
+        //Give up afer repeated publish failures, so the poller stops retrying.
+        FAILED
+    }
     @Id 
     @GeneratedValue 
     private UUID id;
     @Column (name ="aggregate_id", nullable = false)
     private UUID aggregateId;
-    @Column(name="event_type", nullable = false)
+    @Column(name="event_type", nullable = false, length=50)
     private String eventType;
-    @Column ( nullable = false)
+    @Column ( nullable = false, columnDefinition = "TEXT")
     private String payload;
+    @Enumerated(EnumType.STRING)
     @Column ( nullable = false)
-    private String status;
+    private Status status = Status.PENDING;
      @Column ( name= "created_at")
      private Instant createdAt;
      @Column (name= "published_at")
      private Instant publishedAt;
 
-    public UUID getId() {
-        return this.id;
+    protected OutboxEvent() {
     }
-
-    public void setId(UUID id) {
-        this.id = id;
+    public static OutboxEvent of(UUID paymentId, String eventType, String payload) {
+        OutboxEvent event = new OutboxEvent();
+        event.aggregateId = paymentId;
+        event.eventType = eventType;
+        event.payload = payload;
+        event.status = Status.PENDING;
+        return event;
     }
-
-    public UUID getAggregateId() {
-        return this.aggregateId;
+ 
+    @PrePersist
+    protected void onCreate() {
+        if (createdAt == null) {
+            createdAt = Instant.now();
+        }
+        if (status == null) {
+            status = Status.PENDING;
+        }
     }
-
-    public void setAggregateId(UUID aggregateId) {
-        this.aggregateId = aggregateId;
+    public void markPublished(Instant now) {
+        this.status = Status.PUBLISHED;
+        this.publishedAt = now;
     }
-
-    public String getEventType() {
-        return this.eventType;
+    public void markFailed() {
+        this.status = Status.FAILED;
     }
-
-    public void setEventType(String eventType) {
-        this.eventType = eventType;
+ 
+    public UUID getId() { 
+        return id;
+     }
+    public UUID getAggregateId() { 
+        return aggregateId;
+     }
+    public String getEventType() { 
+        return eventType; 
     }
-
-    public String getPayload() {
-        return this.payload;
+    public String getPayload() { 
+        return payload; 
     }
-
-    public void setPayload(String payload) {
-        this.payload = payload;
+    public Status getStatus() {
+         return status; 
+        }
+    public Instant getCreatedAt() { 
+        return createdAt; 
     }
-
-    public String getStatus() {
-        return this.status;
-    }
-
-    public void setStatus(String status) {
-        this.status = status;
-    }
-
-    public Instant getCreatedAt() {
-        return this.createdAt;
-    }
-
-    public void setCreatedAt(Instant createdAt) {
-        this.createdAt = createdAt;
-    }
-
     public Instant getPublishedAt() {
-        return this.publishedAt;
-    }
-
-    public void setPublishedAt(Instant publishedAt) {
-        this.publishedAt = publishedAt;
-    }
+         return publishedAt; 
+        }
 }

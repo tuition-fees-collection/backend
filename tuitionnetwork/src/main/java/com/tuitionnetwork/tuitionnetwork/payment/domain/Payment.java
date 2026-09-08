@@ -220,7 +220,12 @@ public static Payment create(String idempotencyKey,
     public boolean isEppEligible() {
         return status.isSettled() && method != null && method.isEppEligible();
     }
- 
+ public void markPending() {
+    if (isExpired(Instant.now())) {
+        throw new IllegalStateException("Payment order has expired");
+    }
+    transitionTo(PaymentStatus.PENDING);
+}
     public UUID getId() { 
         return id; 
     }

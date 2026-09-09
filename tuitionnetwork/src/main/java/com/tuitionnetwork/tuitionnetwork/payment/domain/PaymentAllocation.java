@@ -45,34 +45,13 @@ public static PaymentAllocation of(UUID paymentId, UUID feeId, BigDecimal amount
     public UUID getId() {
         return this.id;
     }
-
-    public void setId(UUID id) {
-        this.id = id;
-    }
-
     public UUID getPaymentId() {
         return this.paymentId;
     }
-
-    public void setPaymentId(UUID paymentId) {
-        this.paymentId = paymentId;
-    }
-
     public UUID getFeeId() {
         return this.feeId;
     }
-
-    public void setFeeId(UUID feeId) {
-        this.feeId = feeId;
-    }
-
     public BigDecimal getAmountApplied() {
         return this.amountApplied;
     }
-
-    public void setAmountApplied(BigDecimal amountApplied) {
-        this.amountApplied = amountApplied;
-    }
-
- 
 }

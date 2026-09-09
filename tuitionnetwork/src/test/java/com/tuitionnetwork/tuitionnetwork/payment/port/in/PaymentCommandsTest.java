@@ -20,11 +20,6 @@ import com.tuitionnetwork.tuitionnetwork.payment.domain.PaymentMethod;
 import com.tuitionnetwork.tuitionnetwork.payment.domain.PaymentStatus;
 import com.tuitionnetwork.tuitionnetwork.payment.domain.PaymentType;
 
-/**
- * The use-case interfaces have no behaviour, but the commands and views nested
- * inside them do - and two of those rules are worth a test that fails loudly if
- * someone refactors them away.
- */
 class PaymentCommandsTest {
 
     private static final UUID GUARDIAN = UUID.randomUUID();

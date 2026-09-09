@@ -1,5 +1,5 @@
 package com.tuitionnetwork.tuitionnetwork.payment.api;
 
-public class paymentrequest {
+public class PaymentRequest {
     
 }

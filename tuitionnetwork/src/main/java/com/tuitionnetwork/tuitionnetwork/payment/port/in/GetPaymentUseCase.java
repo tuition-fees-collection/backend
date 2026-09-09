@@ -10,7 +10,7 @@ import com.tuitionnetwork.tuitionnetwork.payment.domain.PaymentType;
 public interface GetPaymentUseCase {
 
         /**
-     * @throws com.tuitionnetwork.tuitionnetwork.payment.application.PaymentAccessDeniedException
+     * @throws com.tuitionnetwork.tuitionnetwork.payment.Services.PaymentAccessDeniedException
      *         if the payment belongs to a different guardian
      */
     PaymentView getById(UUID paymentId, UUID requestingGuardianId);

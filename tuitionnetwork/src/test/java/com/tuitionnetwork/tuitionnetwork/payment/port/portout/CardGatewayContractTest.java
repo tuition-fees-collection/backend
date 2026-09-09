@@ -13,12 +13,6 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
-
-/**
- * The gateway contract carries the single most dangerous decision in the module:
- * whether an outcome means "no money moved" or "we do not know". Collapsing those
- * two loses real payments, so they get a test.
- */
 class CardGatewayContractTest {
 
     @Nested
@@ -26,9 +20,9 @@ class CardGatewayContractTest {
     class Outcomes {
 
         @ParameterizedTest
-        @EnumSource(value = CardgatewayPort.Outcome.class, names = {"DECLINED", "REJECTED"})
+        @EnumSource(value = CardGatewayPort.Outcome.class, names = {"DECLINED", "REJECTED"})
         @DisplayName("a decline means no money moved, so FAILED is safe")
-        void definiteFailures(CardgatewayPort.Outcome outcome) {
+        void definiteFailures(CardGatewayPort.Outcome outcome) {
             assertTrue(outcome.isDefiniteFailure());
             assertFalse(outcome.needsReconciliation(), outcome + " is resolved, not ambiguous");
             assertFalse(outcome.isRetryable(), "retrying a decline just declines again");
@@ -37,7 +31,7 @@ class CardGatewayContractTest {
         @Test
         @DisplayName("an unavailable issuer must never be treated as a failure")
         void unknownIsNotAFailure() {
-            var unknown = CardgatewayPort.Outcome.UNKNOWN;
+            var unknown = CardGatewayPort.Outcome.UNKNOWN;
             assertFalse(unknown.isDefiniteFailure(),
                     "marking UNKNOWN as FAILED destroys a payment that may have succeeded");
             assertTrue(unknown.isRetryable(), "safe to resend with the same Idempotency-Key");
@@ -47,7 +41,7 @@ class CardGatewayContractTest {
         @Test
         @DisplayName("NOT_FOUND is ambiguous, not reassuring")
         void notFoundNeedsAHuman() {
-            var notFound = CardgatewayPort.Outcome.NOT_FOUND;
+            var notFound = CardGatewayPort.Outcome.NOT_FOUND;
             assertFalse(notFound.isDefiniteFailure(),
                     "the mock loses everything on restart, so absence does not prove nothing happened");
             assertFalse(notFound.isRetryable(), "resending would charge again");
@@ -55,9 +49,9 @@ class CardGatewayContractTest {
         }
 
         @ParameterizedTest
-        @EnumSource(value = CardgatewayPort.Outcome.class, names = {"APPROVED", "REQUIRES_3DS"})
+        @EnumSource(value = CardGatewayPort.Outcome.class, names = {"APPROVED", "REQUIRES_3DS"})
         @DisplayName("a successful or in-progress outcome is neither a failure nor a retry")
-        void successPathIsClean(CardgatewayPort.Outcome outcome) {
+        void successPathIsClean(CardGatewayPort.Outcome outcome) {
             assertFalse(outcome.isDefiniteFailure());
             assertFalse(outcome.isRetryable());
             assertFalse(outcome.needsReconciliation());
@@ -66,7 +60,7 @@ class CardGatewayContractTest {
         @Test
         @DisplayName("no outcome is both a definite failure and unresolved")
         void classificationsAreExclusive() {
-            for (var outcome : CardgatewayPort.Outcome.values()) {
+            for (var outcome : CardGatewayPort.Outcome.values()) {
                 assertFalse(outcome.isDefiniteFailure() && outcome.needsReconciliation(),
                         outcome + " cannot be both settled and ambiguous");
             }
@@ -80,7 +74,7 @@ class CardGatewayContractTest {
         @Test
         @DisplayName("toString hides the PAN and the CVV")
         void isRedacted() {
-            var command = new CardgatewayPort.ChargeCommand(UUID.randomUUID(),
+            var command = new CardGatewayPort.ChargeCommand(UUID.randomUUID(),
                     "4111111111111111", "MOHAMED HAMOUDA", 12, 2030, "123",
                     new BigDecimal("10000.00"), "EGP", "Tuition", true);
 
@@ -99,8 +93,8 @@ class CardGatewayContractTest {
             assertThrows(IllegalArgumentException.class, () -> charge(null));
         }
 
-        private CardgatewayPort.ChargeCommand charge(BigDecimal amount) {
-            return new CardgatewayPort.ChargeCommand(UUID.randomUUID(), "4111111111111111",
+        private CardGatewayPort.ChargeCommand charge(BigDecimal amount) {
+            return new CardGatewayPort.ChargeCommand(UUID.randomUUID(), "4111111111111111",
                     "X", 12, 2030, "123", amount, "EGP", null, true);
         }
     }
@@ -112,8 +106,8 @@ class CardGatewayContractTest {
         @Test
         @DisplayName("the unknown factory produces a result that cannot be mistaken for a failure")
         void unknownFactory() {
-            var result = CardgatewayPort.Result.unknown("pay_1", "ISSUER_UNAVAILABLE");
-            assertEquals(CardgatewayPort.Outcome.UNKNOWN, result.outcome());
+            var result = CardGatewayPort.Result.unknown("pay_1", "ISSUER_UNAVAILABLE");
+            assertEquals(CardGatewayPort.Outcome.UNKNOWN, result.outcome());
             assertFalse(result.isApproved());
             assertFalse(result.outcome().isDefiniteFailure());
             assertEquals("pay_1", result.gatewayPaymentId());
@@ -122,8 +116,8 @@ class CardGatewayContractTest {
         @Test
         @DisplayName("the not-found factory keeps the id so a human can chase it")
         void notFoundFactory() {
-            var result = CardgatewayPort.Result.notFound("pay_2");
-            assertEquals(CardgatewayPort.Outcome.NOT_FOUND, result.outcome());
+            var result = CardGatewayPort.Result.notFound("pay_2");
+            assertEquals(CardGatewayPort.Outcome.NOT_FOUND, result.outcome());
             assertEquals("pay_2", result.gatewayPaymentId());
         }
 
@@ -136,8 +130,8 @@ class CardGatewayContractTest {
             assertFalse(result(null).isCreditCard(), "an absent card type is not a credit card");
         }
 
-        private CardgatewayPort.Result result(String cardType) {
-            return new CardgatewayPort.Result(CardgatewayPort.Outcome.APPROVED, "pay_1", "CAPTURED",
+        private CardGatewayPort.Result result(String cardType) {
+            return new CardGatewayPort.Result(CardGatewayPort.Outcome.APPROVED, "pay_1", "CAPTURED",
                     new BigDecimal("100.00"), "195000", "3355", "00", "Approved",
                     "411111******1111", "VISA", cardType, null);
         }

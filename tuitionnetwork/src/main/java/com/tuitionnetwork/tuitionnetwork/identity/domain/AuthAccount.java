@@ -3,6 +3,7 @@ package com.tuitionnetwork.tuitionnetwork.identity.domain;
 import jakarta.persistence.*;
 
 import java.time.Instant;
+import java.time.Duration;
 import java.util.UUID;
 
 @Entity
@@ -78,4 +79,84 @@ public class AuthAccount {
 
     protected AuthAccount() {
     }
+    public boolean isActive() {
+    return status == AccountStatus.ACTIVE;
+    }
+    public boolean isLocked(Instant now) {
+    return lockedUntil != null
+            && lockedUntil.isAfter(now);
+    }
+    public void recordFailedLogin(
+        Instant now,
+        int maxFailedAttempts,
+        Duration lockDuration
+    ) {
+        resetExpiredLockIfNeeded(now);
+
+        failedLoginAttempts++;
+
+        if (failedLoginAttempts >= maxFailedAttempts) {
+            lockedUntil = now.plus(lockDuration);
+        }
+    }
+    private void resetExpiredLockIfNeeded(Instant now) {
+        if (lockedUntil != null
+                && !lockedUntil.isAfter(now)) {
+
+            failedLoginAttempts = 0;
+            lockedUntil = null;
+        }
+    }
+    public void recordSuccessfulLogin() {
+    failedLoginAttempts = 0;
+    lockedUntil = null;
+    }
+    public void deactivate() {
+    status = AccountStatus.INACTIVE;
+    tokenVersion++;
+    }
+    public void activate() {
+    status = AccountStatus.ACTIVE;
+    }
+    public UUID getId() {
+    return id;
+    }
+
+    public String getUsernameNormalized() {
+        return usernameNormalized;
+    }
+
+    public String getPasswordHash() {
+        return passwordHash;
+    }
+
+    public AccountStatus getStatus() {
+        return status;
+    }
+
+    public int getFailedLoginAttempts() {
+        return failedLoginAttempts;
+    }
+
+    public Instant getLockedUntil() {
+        return lockedUntil;
+    }
+
+    public long getTokenVersion() {
+        return tokenVersion;
+    }
+
+    public UUID getGuardianId() {
+        return guardianId;
+    }
+
+    public UUID getBackofficeEmployeeId() {
+        return backofficeEmployeeId;
+    }
+
+    public UUID getInstitutionUserId() {
+        return institutionUserId;
+    }
+
+    
 }

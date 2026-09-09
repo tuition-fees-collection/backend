@@ -23,6 +23,28 @@ class TuitionnetworkApplicationTests {
 	@Autowired
 	MockMvc mockMvc;
 
+    @Autowired
+    com.tuitionnetwork.tuitionnetwork.identity.service.auth.TokenIssuer tokenIssuer;
+
+    @Test
+    void validBearerTokenPassesAuthentication() throws Exception {
+        var actor = new com.tuitionnetwork.tuitionnetwork.identity.domain.AuthenticatedActor(
+                java.util.UUID.randomUUID(), java.util.UUID.randomUUID(),
+                com.tuitionnetwork.tuitionnetwork.identity.domain.ActorType.GUARDIAN,
+                com.tuitionnetwork.tuitionnetwork.identity.domain.RoleCode.PAYER, null, null);
+        String token = tokenIssuer.issue(actor, 0);
+        // This route does not exist: 404 proves the request passed the authentication filter.
+        mockMvc.perform(get("/api/v1/nonexistent-test-route")
+                .header("Authorization", "Bearer " + token))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void invalidBearerTokenIsRejected() throws Exception {
+        mockMvc.perform(get("/api/v1/fees").header("Authorization", "Bearer invalid-token"))
+                .andExpect(status().isUnauthorized());
+    }
+
 	@Test
 	void openApiIsPublicAndIncludesProjectMetadata() throws Exception {
 		mockMvc.perform(get("/v3/api-docs"))
@@ -49,8 +71,7 @@ class TuitionnetworkApplicationTests {
 		mockMvc.perform(get("/api/v1/fees").accept("application/json"))
 				.andExpect(status().isUnauthorized());
 		mockMvc.perform(get("/").accept("text/html"))
-				.andExpect(status().is3xxRedirection())
-				.andExpect(redirectedUrl("/login"));
+				.andExpect(status().isUnauthorized());
 	}
 
 	@Test

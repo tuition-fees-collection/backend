@@ -1,7 +1,11 @@
 package com.tuitionnetwork.tuitionnetwork.identity.service;
 
 import com.tuitionnetwork.tuitionnetwork.identity.domain.AuthAccount;
+import com.tuitionnetwork.tuitionnetwork.identity.domain.AuthenticatedActor;
+import com.tuitionnetwork.tuitionnetwork.identity.domain.ActorType;
+import com.tuitionnetwork.tuitionnetwork.identity.domain.RoleCode;
 import com.tuitionnetwork.tuitionnetwork.identity.infra.repository.AuthAccountRepository;
+import com.tuitionnetwork.tuitionnetwork.identity.service.auth.AuthenticatedActorResolver;
 import com.tuitionnetwork.tuitionnetwork.identity.service.auth.AuthenticationFailureReason;
 import com.tuitionnetwork.tuitionnetwork.identity.service.auth.CredentialAuthenticationResult;
 import org.junit.jupiter.api.BeforeEach;
@@ -20,6 +24,7 @@ class AuthServiceTest {
     private AuthAccountRepository authAccountRepository;
     private PasswordEncoder passwordEncoder;
     private AuthService authService;
+    private AuthenticatedActorResolver authenticatedActorResolver;
 
     @BeforeEach
     void setUp() {
@@ -28,11 +33,15 @@ class AuthServiceTest {
 
         passwordEncoder =
                 Mockito.mock(PasswordEncoder.class);
-
+        authenticatedActorResolver =
+                Mockito.mock(
+                        AuthenticatedActorResolver.class
+                );
         authService =
                 new AuthService(
                         authAccountRepository,
-                        passwordEncoder
+                        passwordEncoder,
+                        authenticatedActorResolver
                 );
     }
     @Test
@@ -66,6 +75,9 @@ class AuthServiceTest {
                 );
 
         assertFalse(result.authenticated());
+        assertNull(result.actor());
+    assertNull(result.tokenVersion());
+        verifyNoInteractions(authenticatedActorResolver);
 
         assertEquals(
                 AuthenticationFailureReason.UNKNOWN_ACCOUNT,
@@ -101,6 +113,9 @@ class AuthServiceTest {
             );
 
     assertFalse(result.authenticated());
+    assertNull(result.actor());
+    assertNull(result.tokenVersion());
+    verifyNoInteractions(authenticatedActorResolver);
 
     assertEquals(
             AuthenticationFailureReason.BAD_PASSWORD,
@@ -134,6 +149,17 @@ class AuthServiceTest {
         )
     ).thenReturn(true);
 
+    AuthenticatedActor actor = new AuthenticatedActor(
+            UUID.randomUUID(),
+            account.getGuardianId(),
+            ActorType.GUARDIAN,
+            RoleCode.PAYER,
+            null,
+            null
+    );
+
+    when(authenticatedActorResolver.resolve(account)).thenReturn(actor);
+
     CredentialAuthenticationResult result =
             authService.authenticateCredentials(
                     "payer01",
@@ -141,13 +167,16 @@ class AuthServiceTest {
             );
 
     assertTrue(result.authenticated());
+    assertEquals(Long.valueOf(account.getTokenVersion()), result.tokenVersion());
 
     assertNull(result.failureReason());
 
     assertEquals(
-            account.getId(),
-            result.accountId()
+            actor,
+            result.actor()
     );
+
+    verify(authenticatedActorResolver).resolve(account);
     }
     @Test
     void shouldRejectInactiveAccount() {
@@ -173,6 +202,9 @@ class AuthServiceTest {
             );
 
     assertFalse(result.authenticated());
+    assertNull(result.actor());
+    assertNull(result.tokenVersion());
+    verifyNoInteractions(authenticatedActorResolver);
 
     assertEquals(
             AuthenticationFailureReason.ACCOUNT_INACTIVE,
@@ -213,6 +245,9 @@ class AuthServiceTest {
             );
 
     assertFalse(result.authenticated());
+    assertNull(result.actor());
+    assertNull(result.tokenVersion());
+    verifyNoInteractions(authenticatedActorResolver);
 
     assertEquals(
             AuthenticationFailureReason.ACCOUNT_LOCKED,

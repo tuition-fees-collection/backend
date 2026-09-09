@@ -6,8 +6,11 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import java.util.Locale;
 import com.tuitionnetwork.tuitionnetwork.identity.domain.AuthAccount;
+import com.tuitionnetwork.tuitionnetwork.identity.domain.AuthenticatedActor;
+import com.tuitionnetwork.tuitionnetwork.identity.service.auth.AuthenticatedActorResolver;
 import com.tuitionnetwork.tuitionnetwork.identity.service.auth.AuthenticationFailureReason;
 import org.springframework.transaction.annotation.Transactional;
+
 
 import java.time.Duration;
 import java.time.Instant;
@@ -18,15 +21,18 @@ public class AuthService {
 
     private final AuthAccountRepository authAccountRepository;
     private final PasswordEncoder passwordEncoder;
+    private final AuthenticatedActorResolver authenticatedActorResolver;
 
     public AuthService(
-            AuthAccountRepository authAccountRepository,
-            PasswordEncoder passwordEncoder
-    ) {
+                AuthAccountRepository authAccountRepository,
+                PasswordEncoder passwordEncoder,
+                AuthenticatedActorResolver authenticatedActorResolver
+        ) {
         this.authAccountRepository = authAccountRepository;
         this.passwordEncoder = passwordEncoder;
-    }
-    private String normalizeUsername(String username) {
+        this.authenticatedActorResolver = authenticatedActorResolver;
+        }
+        private String normalizeUsername(String username) {
 
     if (username == null) {
         return "";
@@ -94,8 +100,9 @@ public CredentialAuthenticationResult authenticateCredentials(
 
     account.recordSuccessfulLogin();
 
-    return CredentialAuthenticationResult.success(
-            account.getId()
-    );
+        AuthenticatedActor actor =
+                authenticatedActorResolver.resolve(account);
+
+        return CredentialAuthenticationResult.success(actor, account.getTokenVersion());
     }
 }

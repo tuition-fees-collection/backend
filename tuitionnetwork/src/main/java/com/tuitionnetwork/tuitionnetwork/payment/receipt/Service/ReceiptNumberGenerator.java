@@ -1,4 +1,4 @@
-package com.tuitionnetwork.tuitionnetwork.payment.receipt.Service;
+package com.tuitionnetwork.tuitionnetwork.payment.receipt.service;
 
 public class ReceiptNumberGenerator {
     

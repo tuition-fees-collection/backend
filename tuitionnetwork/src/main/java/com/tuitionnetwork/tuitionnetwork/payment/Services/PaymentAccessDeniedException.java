@@ -1,4 +1,4 @@
-package com.tuitionnetwork.tuitionnetwork.payment.Services;
+package com.tuitionnetwork.tuitionnetwork.payment.services;
 import java.util.UUID;
 public class PaymentAccessDeniedException extends RuntimeException {
  

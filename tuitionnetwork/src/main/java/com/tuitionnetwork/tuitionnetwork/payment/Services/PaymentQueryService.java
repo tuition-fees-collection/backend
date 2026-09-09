@@ -1,4 +1,4 @@
-package com.tuitionnetwork.tuitionnetwork.payment.Services;
+package com.tuitionnetwork.tuitionnetwork.payment.services;
 
 public class PaymentQueryService {
     

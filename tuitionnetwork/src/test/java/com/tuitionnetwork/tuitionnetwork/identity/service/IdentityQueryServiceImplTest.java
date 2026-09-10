@@ -4,6 +4,7 @@ import com.tuitionnetwork.tuitionnetwork.identity.domain.*;
 import com.tuitionnetwork.tuitionnetwork.identity.infra.repository.GuardianIdentityLookupRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import com.tuitionnetwork.tuitionnetwork.identity.domain.AuditAction;
 import org.springframework.security.access.AccessDeniedException;
 import java.util.Optional;
 import java.util.Set;
@@ -17,12 +18,15 @@ class IdentityQueryServiceImplTest {
     private GuardianIdentityLookupRepository repository;
     private IdentityQueryServiceImpl service;
 
+    private AuditService auditService;
+
     @BeforeEach
     void setUp() {
+        auditService = mock(AuditService.class);
         access = mock(IdentityAccessService.class);
         hasher = mock(NationalIdHasher.class);
         repository = mock(GuardianIdentityLookupRepository.class);
-        service = new IdentityQueryServiceImpl(access, hasher, repository);
+        service = new IdentityQueryServiceImpl(access, hasher, repository, auditService);
     }
 
     @Test
@@ -55,6 +59,9 @@ class IdentityQueryServiceImplTest {
 
     @Test
     void bankOfficerResolvesGuardianUsingHmac() {
+        var officer = new AuthenticatedActor(UUID.randomUUID(), UUID.randomUUID(),
+                ActorType.BACKOFFICE_EMPLOYEE, RoleCode.BANK_OFFICER, null, null);
+        when(access.currentActor()).thenReturn(officer);
         var id = new NationalId("29801011234567");
         String hash = "a".repeat(64);
         UUID guardianId = UUID.randomUUID();
@@ -63,9 +70,11 @@ class IdentityQueryServiceImplTest {
         when(repository.findGuardianIdByNationalIdHmac(hash)).thenReturn(Optional.of(guardianId));
         when(repository.findStudentIdsByGuardianId(guardianId)).thenReturn(students);
         assertEquals(new GuardianSearchScope(guardianId, students), service.resolveGuardianSearchScope(id));
-        var order = inOrder(access, hasher, repository);
+        var order = inOrder(access, hasher, repository, auditService);
         order.verify(access).requireBankOfficer();
+        order.verify(access).currentActor();
         order.verify(hasher).hash(id);
+        order.verify(auditService).recordNationalIdLookup(officer, hash);
         order.verify(repository).findGuardianIdByNationalIdHmac(hash);
         order.verify(repository).findStudentIdsByGuardianId(guardianId);
         verifyNoMoreInteractions(repository);
@@ -81,12 +90,16 @@ class IdentityQueryServiceImplTest {
 
     @Test
     void unknownHmacProducesSafeNotFoundError() {
+        var officer = new AuthenticatedActor(UUID.randomUUID(), UUID.randomUUID(),
+                ActorType.BACKOFFICE_EMPLOYEE, RoleCode.BANK_OFFICER, null, null);
+        when(access.currentActor()).thenReturn(officer);
         var id = new NationalId("29801011234567");
         String hash = "b".repeat(64);
         when(hasher.hash(id)).thenReturn(hash);
         when(repository.findGuardianIdByNationalIdHmac(hash)).thenReturn(Optional.empty());
         var error = assertThrows(GuardianNotFoundException.class, () -> service.resolveGuardianSearchScope(id));
         assertEquals("Guardian not found", error.getMessage());
+        verify(auditService).recordNationalIdLookup(officer, hash);
         verify(repository).findGuardianIdByNationalIdHmac(hash);
         verifyNoMoreInteractions(repository);
     }

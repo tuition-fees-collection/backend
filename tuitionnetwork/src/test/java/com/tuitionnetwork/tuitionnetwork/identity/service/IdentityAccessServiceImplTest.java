@@ -4,6 +4,7 @@ import com.tuitionnetwork.tuitionnetwork.identity.domain.*;
 import com.tuitionnetwork.tuitionnetwork.identity.infra.repository.GuardianStudentAccessRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import com.tuitionnetwork.tuitionnetwork.identity.domain.AuditAction;
 import org.springframework.security.access.AccessDeniedException;
 
 import java.util.UUID;
@@ -16,11 +17,14 @@ class IdentityAccessServiceImplTest {
     private GuardianStudentAccessRepository relationships;
     private IdentityAccessServiceImpl service;
 
+    private AuditService auditService;
+
     @BeforeEach
     void setUp() {
+        auditService = mock(AuditService.class);
         currentActorProvider = mock(CurrentActorProvider.class);
         relationships = mock(GuardianStudentAccessRepository.class);
-        service = new IdentityAccessServiceImpl(currentActorProvider, relationships);
+        service = new IdentityAccessServiceImpl(currentActorProvider, relationships, auditService);
     }
 
     @Test
@@ -33,6 +37,7 @@ class IdentityAccessServiceImplTest {
     void shouldAllowBankOfficer() {
         useActor(RoleCode.BANK_OFFICER, null);
         assertDoesNotThrow(service::requireBankOfficer);
+        verifyNoInteractions(auditService);
     }
 
     @Test
@@ -49,13 +54,15 @@ class IdentityAccessServiceImplTest {
         UUID institutionId = UUID.randomUUID();
         useActor(RoleCode.INSTITUTION_OFFICER, institutionId);
         assertDoesNotThrow(() -> service.requireInstitutionAccess(institutionId));
+        verifyNoInteractions(auditService);
     }
 
     @Test
     void shouldDenyOtherInstitution() {
-        useActor(RoleCode.INSTITUTION_OFFICER, UUID.randomUUID());
+        var actor = useActor(RoleCode.INSTITUTION_OFFICER, UUID.randomUUID());
         assertThrows(AccessDeniedException.class,
                 () -> service.requireInstitutionAccess(UUID.randomUUID()));
+        verify(auditService).recordAuthenticated(AuditAction.AUTHORIZATION_DENIED, actor);
     }
 
     @Test
@@ -79,6 +86,7 @@ class IdentityAccessServiceImplTest {
         UUID studentId = UUID.randomUUID();
         when(relationships.existsRelationship(actor.actorId(), studentId)).thenReturn(true);
         assertDoesNotThrow(() -> service.requireStudentAccess(studentId));
+        verifyNoInteractions(auditService);
         verify(relationships).existsRelationship(actor.actorId(), studentId);
         verifyNoMoreInteractions(relationships);
     }
@@ -91,6 +99,7 @@ class IdentityAccessServiceImplTest {
         when(relationships.existsRelationship(actor.actorId(), studentId)).thenReturn(false);
         var error = assertThrows(AccessDeniedException.class, () -> service.requireStudentAccess(studentId));
         assertEquals("Access denied", error.getMessage());
+        verify(auditService).recordAuthenticated(AuditAction.AUTHORIZATION_DENIED, actor);
         verify(relationships).existsRelationship(actor.actorId(), studentId);
     }
 

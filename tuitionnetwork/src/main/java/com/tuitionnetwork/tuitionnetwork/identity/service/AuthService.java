@@ -4,6 +4,7 @@ import com.tuitionnetwork.tuitionnetwork.identity.infra.repository.AuthAccountRe
 import com.tuitionnetwork.tuitionnetwork.identity.service.auth.CredentialAuthenticationResult;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import com.tuitionnetwork.tuitionnetwork.identity.domain.AuditAction;
 import java.util.Locale;
 import com.tuitionnetwork.tuitionnetwork.identity.domain.AuthAccount;
 import com.tuitionnetwork.tuitionnetwork.identity.domain.AuthenticatedActor;
@@ -23,11 +24,15 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final AuthenticatedActorResolver authenticatedActorResolver;
 
+    private final AuditService auditService;
+
     public AuthService(
                 AuthAccountRepository authAccountRepository,
                 PasswordEncoder passwordEncoder,
-                AuthenticatedActorResolver authenticatedActorResolver
+                AuthenticatedActorResolver authenticatedActorResolver,
+                AuditService auditService
         ) {
+        this.auditService = auditService;
         this.authAccountRepository = authAccountRepository;
         this.passwordEncoder = passwordEncoder;
         this.authenticatedActorResolver = authenticatedActorResolver;
@@ -57,6 +62,7 @@ public CredentialAuthenticationResult authenticateCredentials(
             );
 
     if (accountOptional.isEmpty()) {
+        auditService.recordUnauthenticated(AuditAction.LOGIN_FAILURE_UNKNOWN_ACCOUNT);
         return CredentialAuthenticationResult.failure(
                 AuthenticationFailureReason.UNKNOWN_ACCOUNT
         );
@@ -67,12 +73,14 @@ public CredentialAuthenticationResult authenticateCredentials(
     Instant now = Instant.now();
 
     if (!account.isActive()) {
+        auditService.recordUnauthenticated(AuditAction.LOGIN_FAILURE_ACCOUNT_INACTIVE);
         return CredentialAuthenticationResult.failure(
                 AuthenticationFailureReason.ACCOUNT_INACTIVE
         );
     }
 
     if (account.isLocked(now)) {
+        auditService.recordUnauthenticated(AuditAction.LOGIN_FAILURE_ACCOUNT_LOCKED);
         return CredentialAuthenticationResult.failure(
                 AuthenticationFailureReason.ACCOUNT_LOCKED
         );
@@ -93,6 +101,10 @@ public CredentialAuthenticationResult authenticateCredentials(
                 Duration.ofMinutes(15)
         );
 
+        auditService.recordUnauthenticated(AuditAction.LOGIN_FAILURE_BAD_PASSWORD);
+        if (account.isLocked(now)) {
+            auditService.recordUnauthenticated(AuditAction.ACCOUNT_LOCKED);
+        }
         return CredentialAuthenticationResult.failure(
                 AuthenticationFailureReason.BAD_PASSWORD
         );
@@ -103,6 +115,7 @@ public CredentialAuthenticationResult authenticateCredentials(
         AuthenticatedActor actor =
                 authenticatedActorResolver.resolve(account);
 
+        auditService.recordAuthenticated(AuditAction.LOGIN_SUCCESS, actor);
         return CredentialAuthenticationResult.success(actor, account.getTokenVersion());
     }
 }

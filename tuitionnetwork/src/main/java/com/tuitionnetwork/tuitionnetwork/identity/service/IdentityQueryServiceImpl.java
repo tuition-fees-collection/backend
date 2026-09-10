@@ -7,6 +7,7 @@ import com.tuitionnetwork.tuitionnetwork.identity.domain.RoleCode;
 import com.tuitionnetwork.tuitionnetwork.identity.infra.repository.GuardianIdentityLookupRepository;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
+import com.tuitionnetwork.tuitionnetwork.identity.domain.AuditAction;
 
 import java.util.Set;
 import java.util.UUID;
@@ -19,11 +20,15 @@ public class IdentityQueryServiceImpl
     private final NationalIdHasher nationalIdHasher;
     private final GuardianIdentityLookupRepository guardianRepository;
 
+    private final AuditService auditService;
+
     public IdentityQueryServiceImpl(
             IdentityAccessService identityAccessService,
             NationalIdHasher nationalIdHasher,
-            GuardianIdentityLookupRepository guardianRepository
+            GuardianIdentityLookupRepository guardianRepository,
+                AuditService auditService
     ) {
+        this.auditService = auditService;
         this.identityAccessService =
                 identityAccessService;
 
@@ -44,6 +49,7 @@ public class IdentityQueryServiceImpl
                 || actor.actorType()
                    != ActorType.GUARDIAN) {
 
+            auditService.recordAuthenticated(AuditAction.AUTHORIZATION_DENIED, actor);
             throw new AccessDeniedException(
                     "Access denied"
             );
@@ -63,10 +69,14 @@ public class IdentityQueryServiceImpl
         identityAccessService
                 .requireBankOfficer();
 
+        AuthenticatedActor actor = identityAccessService.currentActor();
+
         String nationalIdHmac =
                 nationalIdHasher.hash(
                         nationalId
                 );
+
+        auditService.recordNationalIdLookup(actor, nationalIdHmac);
 
         UUID guardianId =
                 guardianRepository

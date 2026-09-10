@@ -5,6 +5,7 @@ import com.tuitionnetwork.tuitionnetwork.identity.domain.RoleCode;
 import com.tuitionnetwork.tuitionnetwork.identity.infra.repository.GuardianStudentAccessRepository;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
+import com.tuitionnetwork.tuitionnetwork.identity.domain.AuditAction;
 
 import java.util.UUID;
 
@@ -13,9 +14,12 @@ public class IdentityAccessServiceImpl implements IdentityAccessService {
     private final CurrentActorProvider currentActorProvider;
     private final GuardianStudentAccessRepository guardianStudentAccessRepository;
 
+    private final AuditService auditService;
+
     public IdentityAccessServiceImpl(
             CurrentActorProvider currentActorProvider,
-            GuardianStudentAccessRepository guardianStudentAccessRepository) {
+            GuardianStudentAccessRepository guardianStudentAccessRepository, AuditService auditService) {
+        this.auditService = auditService;
         this.currentActorProvider = currentActorProvider;
         this.guardianStudentAccessRepository = guardianStudentAccessRepository;
     }
@@ -27,8 +31,9 @@ public class IdentityAccessServiceImpl implements IdentityAccessService {
 
     @Override
     public void requireBankOfficer() {
-        if (currentActor().role() != RoleCode.BANK_OFFICER) {
-            throw new AccessDeniedException("Access denied");
+        AuthenticatedActor actor = currentActor();
+        if (actor.role() != RoleCode.BANK_OFFICER) {
+            deny(actor);
         }
     }
 
@@ -38,7 +43,7 @@ public class IdentityAccessServiceImpl implements IdentityAccessService {
         if (actor.role() != RoleCode.INSTITUTION_OFFICER
                 || actor.institutionId() == null
                 || !actor.institutionId().equals(institutionId)) {
-            throw new AccessDeniedException("Access denied");
+            deny(actor);
         }
     }
 
@@ -46,10 +51,14 @@ public class IdentityAccessServiceImpl implements IdentityAccessService {
     public void requireStudentAccess(UUID studentId) {
         AuthenticatedActor actor = currentActor();
         if (actor.role() != RoleCode.PAYER || actor.actorId() == null || studentId == null) {
-            throw new AccessDeniedException("Access denied");
+            deny(actor);
         }
         if (!guardianStudentAccessRepository.existsRelationship(actor.actorId(), studentId)) {
-            throw new AccessDeniedException("Access denied");
+            deny(actor);
         }
+    }
+    private void deny(AuthenticatedActor actor) {
+        auditService.recordAuthenticated(AuditAction.AUTHORIZATION_DENIED, actor);
+        throw new AccessDeniedException("Access denied");
     }
 }

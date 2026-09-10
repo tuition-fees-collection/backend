@@ -1,0 +1,21 @@
+package com.tuitionnetwork.tuitionnetwork.identity.domain;
+
+public enum AuditAction {
+
+    LOGIN_SUCCESS,
+
+    LOGIN_FAILURE_UNKNOWN_ACCOUNT,
+    LOGIN_FAILURE_BAD_PASSWORD,
+    LOGIN_FAILURE_ACCOUNT_LOCKED,
+    LOGIN_FAILURE_ACCOUNT_INACTIVE,
+
+    ACCOUNT_LOCKED,
+
+    AUTHORIZATION_DENIED,
+
+    NID_LOOKUP,
+
+    STAFF_CREATED,
+    STAFF_DEACTIVATED,
+    STAFF_REACTIVATED
+}

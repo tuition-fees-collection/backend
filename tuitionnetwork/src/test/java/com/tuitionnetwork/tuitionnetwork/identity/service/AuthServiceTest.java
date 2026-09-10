@@ -10,6 +10,7 @@ import com.tuitionnetwork.tuitionnetwork.identity.service.auth.AuthenticationFai
 import com.tuitionnetwork.tuitionnetwork.identity.service.auth.CredentialAuthenticationResult;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import com.tuitionnetwork.tuitionnetwork.identity.domain.AuditAction;
 import org.mockito.Mockito;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
@@ -26,8 +27,11 @@ class AuthServiceTest {
     private AuthService authService;
     private AuthenticatedActorResolver authenticatedActorResolver;
 
+    private AuditService auditService;
+
     @BeforeEach
     void setUp() {
+        auditService = mock(AuditService.class);
         authAccountRepository =
                 Mockito.mock(AuthAccountRepository.class);
 
@@ -41,7 +45,8 @@ class AuthServiceTest {
                 new AuthService(
                         authAccountRepository,
                         passwordEncoder,
-                        authenticatedActorResolver
+                        authenticatedActorResolver,
+                        auditService
                 );
     }
     @Test
@@ -83,6 +88,7 @@ class AuthServiceTest {
                 AuthenticationFailureReason.UNKNOWN_ACCOUNT,
                 result.failureReason()
         );
+    verify(auditService).recordUnauthenticated(AuditAction.LOGIN_FAILURE_UNKNOWN_ACCOUNT);
     }
     @Test
     void shouldRecordFailureWhenPasswordIsWrong() {
@@ -121,6 +127,7 @@ class AuthServiceTest {
             AuthenticationFailureReason.BAD_PASSWORD,
             result.failureReason()
     );
+    verify(auditService).recordUnauthenticated(AuditAction.LOGIN_FAILURE_BAD_PASSWORD);
 
     assertEquals(
             1,
@@ -177,6 +184,7 @@ class AuthServiceTest {
     );
 
     verify(authenticatedActorResolver).resolve(account);
+    verify(auditService).recordAuthenticated(AuditAction.LOGIN_SUCCESS, actor);
     }
     @Test
     void shouldRejectInactiveAccount() {
@@ -210,6 +218,7 @@ class AuthServiceTest {
             AuthenticationFailureReason.ACCOUNT_INACTIVE,
             result.failureReason()
     );
+    verify(auditService).recordUnauthenticated(AuditAction.LOGIN_FAILURE_ACCOUNT_INACTIVE);
 
     verifyNoInteractions(passwordEncoder);
     }
@@ -253,8 +262,28 @@ class AuthServiceTest {
             AuthenticationFailureReason.ACCOUNT_LOCKED,
             result.failureReason()
     );
+    verify(auditService).recordUnauthenticated(AuditAction.LOGIN_FAILURE_ACCOUNT_LOCKED);
 
     verifyNoInteractions(passwordEncoder);
     }
     
+
+    @Test
+    void fifthBadPasswordAuditsLockTransition() {
+        AuthAccount account = AuthAccount.forGuardian("payer01", "{bcrypt}hash", UUID.randomUUID());
+        var now = java.time.Instant.now();
+        for (int i = 0; i < 4; i++) {
+            account.recordFailedLogin(now, 5, java.time.Duration.ofMinutes(15));
+        }
+        when(authAccountRepository.findForAuthentication("payer01")).thenReturn(Optional.of(account));
+        when(passwordEncoder.matches("wrong", account.getPasswordHash())).thenReturn(false);
+
+        var result = authService.authenticateCredentials("payer01", "wrong");
+
+        assertFalse(result.authenticated());
+        verify(auditService).recordUnauthenticated(AuditAction.LOGIN_FAILURE_BAD_PASSWORD);
+        verify(auditService).recordUnauthenticated(AuditAction.ACCOUNT_LOCKED);
+        verifyNoMoreInteractions(auditService);
+        verifyNoInteractions(authenticatedActorResolver);
+    }
 }

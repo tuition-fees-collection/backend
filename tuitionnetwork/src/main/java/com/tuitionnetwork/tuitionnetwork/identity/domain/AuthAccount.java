@@ -137,6 +137,10 @@ public class AuthAccount {
         return account;
     }
 
+    public void invalidateTokens() {
+        tokenVersion++;
+    }
+
     public boolean isStaffAccount() {
         return backofficeEmployeeId != null || institutionUserId != null;
     }

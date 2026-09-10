@@ -14,6 +14,12 @@ import org.springframework.data.repository.query.Param;
 public interface AuthAccountRepository
         extends JpaRepository<AuthAccount, UUID> {
 
+    boolean existsByUsernameNormalized(String usernameNormalized);
+
+    Optional<AuthAccount> findByBackofficeEmployeeId(UUID backofficeEmployeeId);
+
+    java.util.List<AuthAccount> findAllByBackofficeEmployeeId(UUID backofficeEmployeeId);
+
     Optional<AuthAccount> findByUsernameNormalized(
             String usernameNormalized
     );

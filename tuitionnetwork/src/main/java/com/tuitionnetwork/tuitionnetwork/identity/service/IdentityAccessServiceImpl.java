@@ -57,6 +57,14 @@ public class IdentityAccessServiceImpl implements IdentityAccessService {
             deny(actor);
         }
     }
+    @Override
+    public void requireAdmin() {
+        AuthenticatedActor actor = currentActor();
+        if (actor.role() != RoleCode.ADMIN) {
+            deny(actor);
+        }
+    }
+
     private void deny(AuthenticatedActor actor) {
         auditService.recordAuthenticated(AuditAction.AUTHORIZATION_DENIED, actor);
         throw new AccessDeniedException("Access denied");

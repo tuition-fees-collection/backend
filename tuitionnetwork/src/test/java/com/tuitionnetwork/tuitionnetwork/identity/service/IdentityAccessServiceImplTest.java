@@ -129,4 +129,16 @@ class IdentityAccessServiceImplTest {
         when(currentActorProvider.currentActor()).thenReturn(actor);
         return actor;
     }
+
+    @Test
+    void onlyAdminCanManageStaff() {
+        useActor(RoleCode.ADMIN, null);
+        assertDoesNotThrow(service::requireAdmin);
+        verifyNoInteractions(auditService);
+        for (RoleCode role : new RoleCode[]{RoleCode.PAYER, RoleCode.BANK_OFFICER, RoleCode.INSTITUTION_OFFICER}) {
+            var actor = useActor(role, null);
+            assertThrows(AccessDeniedException.class, service::requireAdmin);
+            verify(auditService).recordAuthenticated(AuditAction.AUTHORIZATION_DENIED, actor);
+        }
+    }
 }

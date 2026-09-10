@@ -137,6 +137,10 @@ public class AuthAccount {
         return account;
     }
 
+    public boolean isStaffAccount() {
+        return backofficeEmployeeId != null || institutionUserId != null;
+    }
+
     public boolean isActive() {
         return status == AccountStatus.ACTIVE;
     }

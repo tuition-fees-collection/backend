@@ -13,6 +13,8 @@ import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator;
 import org.springframework.security.oauth2.jwt.JwtAudienceValidator;
 import org.springframework.security.oauth2.jwt.JwtValidators;
 
+import com.tuitionnetwork.tuitionnetwork.identity.infra.security.JwtAccountStateValidator;
+
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 import java.util.Base64;
@@ -49,14 +51,14 @@ public class JwtCryptoConfig {
     }
 
     @Bean
-    JwtDecoder jwtDecoder(SecretKey jwtSecretKey) {
+    JwtDecoder jwtDecoder(SecretKey jwtSecretKey, JwtAccountStateValidator accountStateValidator) {
         NimbusJwtDecoder decoder = NimbusJwtDecoder
                 .withSecretKey(jwtSecretKey)
                 .macAlgorithm(MacAlgorithm.HS256)
                 .build();
         decoder.setJwtValidator(new DelegatingOAuth2TokenValidator<>(
                 JwtValidators.createDefaultWithIssuer("tuitionnetwork"),
-                new JwtAudienceValidator("tuitionnetwork-api")));
+                new JwtAudienceValidator("tuitionnetwork-api"), accountStateValidator));
         return decoder;
     }
 }

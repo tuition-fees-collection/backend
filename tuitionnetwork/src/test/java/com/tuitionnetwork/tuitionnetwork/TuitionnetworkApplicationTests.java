@@ -95,7 +95,16 @@ class TuitionnetworkApplicationTests {
 		mockMvc.perform(get("/v3/api-docs"))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.info.title").value("Tuition & Services Fees Collection Network API"))
-				.andExpect(jsonPath("$.info.version").value("v1"));
+				.andExpect(jsonPath("$.info.version").value("v1"))
+                .andExpect(jsonPath("$.components.securitySchemes.bearerAuth.type").value("http"))
+                .andExpect(jsonPath("$.components.securitySchemes.bearerAuth.scheme").value("bearer"))
+                .andExpect(jsonPath("$.components.securitySchemes.bearerAuth.bearerFormat").value("JWT"))
+                .andExpect(jsonPath("$.paths['/api/v1/admin/accounts/backoffice'].post.security[0].bearerAuth").isArray())
+                .andExpect(jsonPath("$.paths['/api/v1/admin/accounts/institution'].post.security[0].bearerAuth").isArray())
+                .andExpect(jsonPath("$.paths['/api/v1/admin/accounts/{id}/deactivate'].patch.security[0].bearerAuth").isArray())
+                .andExpect(jsonPath("$.paths['/api/v1/admin/accounts/{id}/reactivate'].patch.security[0].bearerAuth").isArray())
+                .andExpect(jsonPath("$.paths['/api/v1/auth/login'].post.security").doesNotExist())
+                .andExpect(jsonPath("$.security").doesNotExist());
 		mockMvc.perform(get("/v3/api-docs/swagger-config"))
 				.andExpect(status().isOk());
 	}

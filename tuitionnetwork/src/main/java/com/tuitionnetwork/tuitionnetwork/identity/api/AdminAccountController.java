@@ -2,12 +2,14 @@ package com.tuitionnetwork.tuitionnetwork.identity.api;
 
 import com.tuitionnetwork.tuitionnetwork.identity.service.AdminAccountService;
 import org.springframework.dao.DataIntegrityViolationException;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1/admin/accounts")
+@SecurityRequirement(name = "bearerAuth")
 public class AdminAccountController {
     private final AdminAccountService service;
 

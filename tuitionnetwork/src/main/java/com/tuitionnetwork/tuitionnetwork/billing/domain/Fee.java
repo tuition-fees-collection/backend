@@ -7,7 +7,7 @@ import java.util.UUID;
 
 
 @Entity
-@Table(name="fee")
+@Table(name="fee",schema = "billing")
 
 public class Fee{
        @Id

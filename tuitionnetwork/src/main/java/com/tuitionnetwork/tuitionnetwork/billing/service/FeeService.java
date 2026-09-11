@@ -27,17 +27,21 @@ public class FeeService{
         return feeRepository.findById(feeId)
         .orElseThrow(() -> new IllegalArgumentException("Fee not found: "+feeId));
     }
+
+    private void ensureFee(Fee fee){
+        if(fee.getStatus()==FeeStatus.PAID){
+            throw new IllegalArgumentException("Fee is already paid: "+fee.getId());
+        }
+        if(fee.getOutstandingAmount().signum()<=0){
+            throw new IllegalArgumentException("Fee has no outstanding balance "+fee.getId());
+        }
+
+    }
     
     /*get payable fees only (Read/Check*/
     public Fee getPayableFee(UUID feeId){
         Fee fee=getFee(feeId);
-        if(fee.getStatus()==FeeStatus.PAID){
-            throw new IllegalArgumentException("Fee is already paid: "+feeId);
-        }
-        if(fee.getOutstandingAmount().signum()<=0){
-            throw new IllegalArgumentException("Fee has no outstanding balance "+feeId);
-        }
-
+        ensureFee(fee);
         return fee;
 
     }
@@ -46,13 +50,7 @@ public class FeeService{
     public Fee getPayableFeeForUpdate(UUID feeId){
         Fee fee=feeRepository.findByIdForUpdate(feeId)
         .orElseThrow(() -> new IllegalArgumentException("Fee not found: "+feeId));
-
-        if(fee.getStatus()==FeeStatus.PAID){
-            throw new IllegalArgumentException("Fee is already paid: "+feeId);
-        }
-        if(fee.getOutstandingAmount().signum()<=0){
-            throw new IllegalArgumentException("Fee has no outstanding balance: "+feeId);
-        }
+        ensureFee(fee);
 
         return fee;
     }

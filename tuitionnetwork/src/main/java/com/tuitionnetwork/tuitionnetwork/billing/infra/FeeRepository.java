@@ -74,7 +74,7 @@ public interface FeeRepository extends JpaRepository<Fee,UUID> {
                     SELECT f
                     FROM Fee f
                     WHERE f.id=:feeId   
-                        """)
+                    """)
                     Optional<Fee> findByIdForUpdate(
                         @Param("feeId") UUID feeId
                     );

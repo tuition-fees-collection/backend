@@ -78,6 +78,11 @@ public interface FeeRepository extends JpaRepository<Fee,UUID> {
                     Optional<Fee> findByIdForUpdate(
                         @Param("feeId") UUID feeId
                     );
+
+
+            /*get all fees for a batch of students (balance aggregation) */
+            /*gurdian has more than one child so use it insted of individual student queries */
+            List<Fee> findByStudentIdIn(List<UUID> studentIds);
             }
     
         

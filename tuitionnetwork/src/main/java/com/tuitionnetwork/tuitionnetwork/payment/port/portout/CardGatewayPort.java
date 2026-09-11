@@ -1,7 +1,6 @@
 package com.tuitionnetwork.tuitionnetwork.payment.port.portout;
 import java.math.BigDecimal;
 import java.util.UUID;
-
 public interface CardGatewayPort {
     Result charge(ChargeCommand command, String idempotencyKey);
     Result confirm3ds(String gatewayPaymentId, String otp);

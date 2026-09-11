@@ -1,12 +1,9 @@
 package com.tuitionnetwork.tuitionnetwork.payment.domain.event;
-
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
-
 import com.tuitionnetwork.tuitionnetwork.payment.domain.PaymentMethod;
 import com.tuitionnetwork.tuitionnetwork.payment.domain.PaymentType;
-
 public record PaymentCreatedEvent(UUID paymentId,
         UUID guardianId,
         BigDecimal amount,

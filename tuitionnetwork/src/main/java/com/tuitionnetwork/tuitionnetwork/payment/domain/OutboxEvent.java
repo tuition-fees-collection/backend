@@ -13,11 +13,8 @@ import jakarta.persistence.Table;
 @Table(name = "outbox_event",schema = "payments")
 public class OutboxEvent {
       public enum Status {
-        // Written, not yet published. Matches the schema default.
         PENDING,
-        //Successfully sent 
         PUBLISHED,
-        //Give up afer repeated publish failures, so the poller stops retrying.
         FAILED
     }
     @Id 

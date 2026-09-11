@@ -6,7 +6,6 @@ import java.util.UUID;
 import com.tuitionnetwork.tuitionnetwork.payment.domain.PaymentMethod;
 import com.tuitionnetwork.tuitionnetwork.payment.domain.PaymentStatus;
 import com.tuitionnetwork.tuitionnetwork.payment.domain.PaymentType;
-
 public interface CreatePaymentUseCase {
     PaymentOrderView create(CreatePaymentCommand command);
      record CreatePaymentCommand(
@@ -39,12 +38,14 @@ public interface CreatePaymentUseCase {
             }
         }
     }
- 
     record PaymentOrderView(
             UUID paymentId,
             PaymentStatus status,
             BigDecimal amount,
             String currency,
+            PaymentMethod method,
+            PaymentType paymentType,
+            Instant createdAt,
             Instant expiresAt,
             boolean idempotentReplay
     ) {

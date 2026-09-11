@@ -1,12 +1,9 @@
 package com.tuitionnetwork.tuitionnetwork.payment.domain.event;
-
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
-
 import com.tuitionnetwork.tuitionnetwork.payment.domain.PaymentMethod;
-
 public record PaymentSucceededEvent (UUID paymentId,
         UUID guardianId,
         BigDecimal amount,
@@ -21,7 +18,6 @@ public record PaymentSucceededEvent (UUID paymentId,
     public PaymentSucceededEvent {
         settledFees = settledFees == null ? List.of() : List.copyOf(settledFees);
     }
- 
     public String eventType() {
         return EVENT_TYPE;
     }

@@ -11,12 +11,9 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
-
 class PaymentSagaStepTest {
-
     private static final UUID PAYMENT = UUID.randomUUID();
     private static final Instant NOW = Instant.now();
-
     @Test
     @DisplayName("a planned step starts PENDING so the NOT NULL column is never sent a null")
     void startsPending() {

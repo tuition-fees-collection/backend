@@ -14,8 +14,6 @@ public interface GetPaymentUseCase {
      *         if the payment belongs to a different guardian
      */
     PaymentView getById(UUID paymentId, UUID requestingGuardianId);
-
-    /** Payment history, newest first - BO-US-12. */
     List<PaymentSummary> history(UUID guardianId);
     record PaymentView(
             UUID paymentId,
@@ -35,20 +33,23 @@ public interface GetPaymentUseCase {
             allocations = allocations == null ? List.of() : List.copyOf(allocations);
         }
     }
-
-    /** Which fee this payment cleared, and by how much. */
     record AllocationView(UUID feeId, String feeType, String collectionPeriod, BigDecimal amountApplied) {
     }
-
-    /** The list row. Enough to render history without loading allocations. */
     record PaymentSummary(
             UUID paymentId,
             PaymentStatus status,
             BigDecimal amount,
             String currency,
             PaymentMethod method,
+            PaymentType paymentType,
+            String maskedCardNumber,
+            String cardScheme,
             Instant createdAt,
-            boolean hasReceipt
+            Instant settledAt,
+            String receiptReference
     ) {
+        public boolean hasReceipt() {
+            return receiptReference != null;
+        }
     }
 }

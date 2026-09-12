@@ -24,12 +24,14 @@ public class BillingFeeProvisioningAdapter implements FeeProvisioningPort {
 
     @Override
     public boolean isAvailable() {
-        return studentResolutionPort.isPresent();
+        return studentResolutionPort.filter(StudentResolutionPort::isAvailable).isPresent();
     }
 
     @Override
     public UUID provisionFee(Command command) {
-        StudentResolutionPort resolver = studentResolutionPort.orElseThrow(
+        StudentResolutionPort resolver = studentResolutionPort
+                .filter(StudentResolutionPort::isAvailable)
+                .orElseThrow(
                 () -> new IllegalStateException("Student identity resolution is not configured"));
         UUID studentId = resolver.resolveRequiredStudentId(command.studentNationalId());
         Fee fee = new Fee(

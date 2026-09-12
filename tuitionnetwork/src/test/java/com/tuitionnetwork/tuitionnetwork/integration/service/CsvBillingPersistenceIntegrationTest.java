@@ -2,13 +2,11 @@ package com.tuitionnetwork.tuitionnetwork.integration.service;
 
 import com.tuitionnetwork.tuitionnetwork.billing.domain.FeeStatus;
 import com.tuitionnetwork.tuitionnetwork.billing.infra.FeeRepository;
-import com.tuitionnetwork.tuitionnetwork.integration.infra.ports.StudentResolutionPort;
+import com.tuitionnetwork.tuitionnetwork.identity.domain.NationalId;
+import com.tuitionnetwork.tuitionnetwork.identity.service.NationalIdHasher;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.context.TestConfiguration;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -16,14 +14,15 @@ import java.io.ByteArrayInputStream;
 import java.nio.charset.StandardCharsets;
 import java.time.YearMonth;
 import java.util.UUID;
-import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-@SpringBootTest
-@Import(CsvBillingPersistenceIntegrationTest.StudentResolutionTestConfig.class)
+@SpringBootTest(properties =
+        "security.national-id.hmac-key-base64=YWJjZGVmZ2hpamtsbW5vcHFyc3R1dnd4eXpBQkNERUY=")
 @Transactional
 class CsvBillingPersistenceIntegrationTest {
+
+    private static final String STUDENT_NATIONAL_ID = "29901234567890";
 
     @Autowired
     private FeeUploadService feeUploadService;
@@ -35,17 +34,16 @@ class CsvBillingPersistenceIntegrationTest {
     private JdbcTemplate jdbcTemplate;
 
     @Autowired
-    private AtomicReference<UUID> resolvedStudentId;
+    private NationalIdHasher nationalIdHasher;
 
     @Test
     void acceptedCsvRowIsPersistedAsBillingFee() {
         Fixture fixture = seedFixture();
-        resolvedStudentId.set(fixture.studentId());
         String period = YearMonth.now().plusMonths(1).toString();
         String csv = """
                 national_id,fee_type,amount,currency,collection_period,parent_national_id,parent_full_name
-                29901234567890,TUITION,5000,EGP,%s,19001112223344,Ahmed Mohamed
-                """.formatted(period);
+                %s,TUITION,5000,EGP,%s,19001112223344,Ahmed Mohamed
+                """.formatted(STUDENT_NATIONAL_ID, period);
 
         FeeUploadResult result = feeUploadService.submit(
                 fixture.institutionId(),
@@ -82,29 +80,11 @@ class CsvBillingPersistenceIntegrationTest {
         UUID studentId = UUID.randomUUID();
         jdbcTemplate.update(
                 "INSERT INTO identity.student (id, national_id_hmac, full_name) VALUES (?, ?, ?)",
-                studentId, UUID.randomUUID().toString().replace("-", "").repeat(2), "CSV Test Student");
+                studentId,
+                nationalIdHasher.hash(new NationalId(STUDENT_NATIONAL_ID)),
+                "CSV Test Student");
 
         return new Fixture(institutionId, uploaderId, studentId);
-    }
-
-    @TestConfiguration(proxyBeanMethods = false)
-    static class StudentResolutionTestConfig {
-
-        @Bean
-        AtomicReference<UUID> resolvedStudentId() {
-            return new AtomicReference<>();
-        }
-
-        @Bean
-        StudentResolutionPort studentResolutionPort(AtomicReference<UUID> resolvedStudentId) {
-            return nationalId -> {
-                UUID studentId = resolvedStudentId.get();
-                if (studentId == null) {
-                    throw new IllegalStateException("Test student has not been configured");
-                }
-                return studentId;
-            };
-        }
     }
 
     private record Fixture(UUID institutionId, UUID uploaderId, UUID studentId) {

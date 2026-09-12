@@ -26,6 +26,10 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
+import com.tuitionnetwork.tuitionnetwork.identity.domain.ActorType;
+import com.tuitionnetwork.tuitionnetwork.identity.domain.AuthenticatedActor;
+import com.tuitionnetwork.tuitionnetwork.identity.domain.RoleCode;
+import com.tuitionnetwork.tuitionnetwork.identity.service.IdentityAccessService;
 import com.tuitionnetwork.tuitionnetwork.payment.domain.Payment;
 import com.tuitionnetwork.tuitionnetwork.payment.domain.PaymentAllocation;
 import com.tuitionnetwork.tuitionnetwork.payment.domain.PaymentMethod;
@@ -47,13 +51,15 @@ class PaymentQueryServiceTest {
     @Mock private PaymentAllocationRepository allocations;
     @Mock private BillingPort billing;
     @Mock private ReceiptPort receipts;
+    @Mock private IdentityAccessService identity;
 
     private PaymentQueryService service;
     private Payment payment;
 
     @BeforeEach
     void setUp() {
-        service = new PaymentQueryService(payments, allocations, billing, receipts);
+        service = new PaymentQueryService(payments, allocations, billing, receipts, identity);
+        when(identity.currentActor()).thenReturn(payer(GUARDIAN));
 
         payment = successful();
         when(payments.findById(payment.getId())).thenReturn(Optional.of(payment));
@@ -73,8 +79,10 @@ class PaymentQueryServiceTest {
         @Test
         @DisplayName("another guardian cannot read this payment")
         void wrongGuardianRefused() {
+            org.mockito.Mockito.doThrow(new org.springframework.security.access.AccessDeniedException("Access denied"))
+                    .when(identity).authorizePaymentAccess(GUARDIAN);
             assertThrows(PaymentAccessDeniedException.class,
-                    () -> service.getById(payment.getId(), OTHER_GUARDIAN));
+                    () -> service.getById(payment.getId()));
         }
         @Test
         @DisplayName("an unknown id is indistinguishable from someone else's")
@@ -83,13 +91,13 @@ class PaymentQueryServiceTest {
             when(payments.findById(missing)).thenReturn(Optional.empty());
 
             assertThrows(PaymentAccessDeniedException.class,
-                    () -> service.getById(missing, GUARDIAN));
+                    () -> service.getById(missing));
         }
 
         @Test
         @DisplayName("the owner can read it")
         void ownerAllowed() {
-            PaymentView view = service.getById(payment.getId(), GUARDIAN);
+            PaymentView view = service.getById(payment.getId());
             assertEquals(payment.getId(), view.paymentId());
         }
     }
@@ -101,7 +109,7 @@ class PaymentQueryServiceTest {
         @Test
         @DisplayName("the allocations name the fee they cleared")
         void allocationsAreNamed() {
-            PaymentView view = service.getById(payment.getId(), GUARDIAN);
+            PaymentView view = service.getById(payment.getId());
 
             assertEquals(1, view.allocations().size());
             assertEquals("BUS", view.allocations().get(0).feeType());
@@ -113,13 +121,13 @@ class PaymentQueryServiceTest {
         @Test
         @DisplayName("a settled payment carries its receipt reference")
         void receiptReference() {
-            assertEquals("RCP-2026-TEST", service.getById(payment.getId(), GUARDIAN).receiptReference());
+            assertEquals("RCP-2026-TEST", service.getById(payment.getId()).receiptReference());
         }
 
         @Test
         @DisplayName("the masked card is shown, never anything else about the card")
         void maskedCardOnly() {
-            PaymentView view = service.getById(payment.getId(), GUARDIAN);
+            PaymentView view = service.getById(payment.getId());
             assertTrue(view.maskedCardNumber().contains("*"));
         }
     }
@@ -134,7 +142,7 @@ class PaymentQueryServiceTest {
             when(payments.findByGuardianIdOrderByCreatedAtDesc(GUARDIAN))
                     .thenReturn(List.of(payment));
 
-            List<PaymentSummary> history = service.history(GUARDIAN);
+            List<PaymentSummary> history = service.history();
 
             assertEquals(1, history.size());
             assertEquals("RCP-2026-TEST", history.get(0).receiptReference());
@@ -147,7 +155,7 @@ class PaymentQueryServiceTest {
             when(payments.findByGuardianIdOrderByCreatedAtDesc(GUARDIAN))
                     .thenReturn(List.of(failed));
 
-            List<PaymentSummary> history = service.history(GUARDIAN);
+            List<PaymentSummary> history = service.history();
 
             assertNull(history.get(0).receiptReference());
             verify(receipts, never()).findByPaymentId(failed.getId());
@@ -182,5 +190,10 @@ class PaymentQueryServiceTest {
             throw new IllegalStateException(e);
         }
         return payment;
+    }
+
+    private static AuthenticatedActor payer(UUID guardianId) {
+        return new AuthenticatedActor(UUID.randomUUID(), guardianId,
+                ActorType.GUARDIAN, RoleCode.PAYER, null, null);
     }
 }

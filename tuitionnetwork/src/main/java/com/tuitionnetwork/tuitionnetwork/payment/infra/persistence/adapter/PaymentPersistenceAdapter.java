@@ -49,6 +49,11 @@ public class PaymentPersistenceAdapter  implements PaymentRepository{
     public List<Payment> findByGuardianIdOrderByCreatedAtDesc(UUID guardianId) {
         return jpa.findByGuardianIdOrderByCreatedAtDesc(guardianId);
     }
+
+    @Override
+    public List<Payment> findByProcessedByOrderByCreatedAtDesc(UUID processedBy) {
+        return jpa.findByProcessedByOrderByCreatedAtDesc(processedBy);
+    }
     @Override
     public List<Payment> findInFlightOlderThan(Instant cutoff) {
         return jpa.findByStatusInAndCreatedAtBefore(IN_FLIGHT, cutoff);

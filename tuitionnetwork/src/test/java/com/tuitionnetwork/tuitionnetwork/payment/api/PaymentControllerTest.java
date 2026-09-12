@@ -48,13 +48,12 @@ class PaymentControllerTest {
     private static final String ORDER_BODY = """
             {
               "studentId": "%s",
-              "processedBy": "%s",
               "feeLines": [ { "feeId": "%s", "amountToApply": 500.00 } ],
               "method": "CREDIT_CARD",
               "paymentType": "PARTIAL",
               "currency": "EGP"
             }
-            """.formatted(STUDENT, OFFICER, FEE);
+            """.formatted(STUDENT, FEE);
 
     private static final String CARD_BODY = """
             {
@@ -81,7 +80,6 @@ class PaymentControllerTest {
 
             mvc.perform(post("/api/v1/payment-orders")
                             .header("Idempotency-Key", "key-1")
-                            .header("X-Guardian-Id", GUARDIAN)
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(ORDER_BODY))
                     .andExpect(status().isCreated())
@@ -96,7 +94,6 @@ class PaymentControllerTest {
 
             mvc.perform(post("/api/v1/payment-orders")
                             .header("Idempotency-Key", "key-1")
-                            .header("X-Guardian-Id", GUARDIAN)
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(ORDER_BODY))
                     .andExpect(status().isOk());
@@ -105,7 +102,6 @@ class PaymentControllerTest {
         @DisplayName("refuses a request with no Idempotency-Key")
         void idempotencyKeyIsRequired() throws Exception {
             mvc.perform(post("/api/v1/payment-orders")
-                            .header("X-Guardian-Id", GUARDIAN)
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(ORDER_BODY))
                     .andExpect(status().isBadRequest())
@@ -115,15 +111,15 @@ class PaymentControllerTest {
         }
 
         @Test
-        @DisplayName("refuses a request with no guardian")
-        void guardianIsRequired() throws Exception {
+        @DisplayName("does not require a client-supplied guardian or processor")
+        void actorComesFromTheSession() throws Exception {
+            when(createPayment.create(any())).thenReturn(orderView(false));
+
             mvc.perform(post("/api/v1/payment-orders")
                             .header("Idempotency-Key", "key-1")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(ORDER_BODY))
-                    .andExpect(status().isBadRequest());
-
-            verify(createPayment, never()).create(any());
+                    .andExpect(status().isCreated());
         }
         @Test
         @DisplayName("rejects an empty fee list before the service is called")
@@ -131,17 +127,15 @@ class PaymentControllerTest {
             String body = """
                     {
                       "studentId": "%s",
-                      "processedBy": "%s",
                       "feeLines": [],
                       "method": "CREDIT_CARD",
                       "paymentType": "PARTIAL",
                       "currency": "EGP"
                     }
-                    """.formatted(STUDENT, OFFICER);
+                    """.formatted(STUDENT);
 
             mvc.perform(post("/api/v1/payment-orders")
                             .header("Idempotency-Key", "key-1")
-                            .header("X-Guardian-Id", GUARDIAN)
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(body))
                     .andExpect(status().isBadRequest())
@@ -162,7 +156,6 @@ class PaymentControllerTest {
                     "Your bank declined this payment. Try a different card."));
 
             mvc.perform(post("/api/v1/payment-orders/" + PAYMENT_ID + "/pay")
-                            .header("X-Guardian-Id", GUARDIAN)
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(CARD_BODY))
                     .andExpect(status().isOk())
@@ -177,7 +170,6 @@ class PaymentControllerTest {
                     "We are confirming this payment with your bank."));
 
             mvc.perform(post("/api/v1/payment-orders/" + PAYMENT_ID + "/pay")
-                            .header("X-Guardian-Id", GUARDIAN)
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(CARD_BODY))
                     .andExpect(status().isOk())
@@ -189,7 +181,6 @@ class PaymentControllerTest {
         @DisplayName("a card charge with no card number is rejected at the edge")
         void cardIsRequired() throws Exception {
             mvc.perform(post("/api/v1/payment-orders/" + PAYMENT_ID + "/pay")
-                            .header("X-Guardian-Id", GUARDIAN)
                             .contentType(MediaType.APPLICATION_JSON)
                             .content("""
                                     {
@@ -210,8 +201,7 @@ class PaymentControllerTest {
                     PAYMENT_ID, PaymentStatus.SUCCESSFUL, false, null, "RCP-2026-TESTTEST",
                     "Payment successful"));
 
-            mvc.perform(post("/api/v1/payment-orders/" + PAYMENT_ID + "/pay-cash")
-                            .header("X-Guardian-Id", GUARDIAN))
+            mvc.perform(post("/api/v1/payment-orders/" + PAYMENT_ID + "/pay-cash"))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.status").value("SUCCESSFUL"));
         }
@@ -223,11 +213,10 @@ class PaymentControllerTest {
         @Test
         @DisplayName("another guardian's payment is 404, not 403")
         void accessDeniedLooksLikeNotFound() throws Exception {
-            when(getPayment.getById(any(), any()))
+            when(getPayment.getById(any()))
                     .thenThrow(new PaymentAccessDeniedException(UUID.fromString(GUARDIAN), PAYMENT_ID));
 
-            mvc.perform(get("/api/v1/payment-orders/" + PAYMENT_ID)
-                            .header("X-Guardian-Id", GUARDIAN))
+            mvc.perform(get("/api/v1/payment-orders/" + PAYMENT_ID))
                     .andExpect(status().isNotFound())
                     .andExpect(jsonPath("$.message").value("Payment not found"));
         }
@@ -240,7 +229,6 @@ class PaymentControllerTest {
 
             mvc.perform(post("/api/v1/payment-orders")
                             .header("Idempotency-Key", "key-1")
-                            .header("X-Guardian-Id", GUARDIAN)
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(ORDER_BODY))
                     .andExpect(status().isUnprocessableContent())
@@ -254,10 +242,9 @@ class PaymentControllerTest {
         @Test
         @DisplayName("support and reconciliation fields never reach the caller")
         void noInternalFields() throws Exception {
-            when(getPayment.getById(any(), any())).thenReturn(paymentView());
+            when(getPayment.getById(any())).thenReturn(paymentView());
 
-            mvc.perform(get("/api/v1/payment-orders/" + PAYMENT_ID)
-                            .header("X-Guardian-Id", GUARDIAN))
+            mvc.perform(get("/api/v1/payment-orders/" + PAYMENT_ID))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.authCode").doesNotExist())
                     .andExpect(jsonPath("$.rrn").doesNotExist())

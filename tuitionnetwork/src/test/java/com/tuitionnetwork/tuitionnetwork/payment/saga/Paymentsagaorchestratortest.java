@@ -39,6 +39,7 @@ import com.tuitionnetwork.tuitionnetwork.payment.port.in.ExecutePaymentSagaUseCa
 import com.tuitionnetwork.tuitionnetwork.payment.port.portout.CardGatewayPort;
 import com.tuitionnetwork.tuitionnetwork.payment.port.portout.PaymentRepository;
 import com.tuitionnetwork.tuitionnetwork.payment.port.portout.ReceiptPort;
+import com.tuitionnetwork.tuitionnetwork.identity.service.IdentityAccessService;
 import com.tuitionnetwork.tuitionnetwork.payment.services.PaymentAccessDeniedException;
 import com.tuitionnetwork.tuitionnetwork.payment.services.strategy.CashHandler;
 import com.tuitionnetwork.tuitionnetwork.payment.services.strategy.CreditCardHandler;
@@ -57,6 +58,7 @@ class PaymentSagaOrchestratorTest {
     @Mock private PaymentSaga saga;
     @Mock private ReceiptPort receipts;
     @Mock private CardGatewayPort gateway;
+    @Mock private IdentityAccessService identity;
 
     private PaymentSagaOrchestrator orchestrator;
     private Payment payment;
@@ -68,7 +70,8 @@ class PaymentSagaOrchestratorTest {
                 new CreditCardHandler(gateway),
                 new DebitCardHandler(gateway));
 
-        orchestrator = new PaymentSagaOrchestrator(payments, settlement, saga, receipts, gateway, handlers);
+        orchestrator = new PaymentSagaOrchestrator(
+                payments, settlement, saga, receipts, gateway, identity, handlers);
 
         payment = persisted(PaymentMethod.CREDIT_CARD);
         when(payments.findById(payment.getId())).thenReturn(Optional.of(payment));
@@ -223,7 +226,7 @@ class PaymentSagaOrchestratorTest {
         @DisplayName("cannot be confirmed on a payment with no provider reference")
         void needsAReference() {
             assertThrows(IllegalStateException.class,
-                    () -> orchestrator.confirm3ds(new Confirm3dsCommand(payment.getId(), GUARDIAN, "123456")));
+                    () -> orchestrator.confirm3ds(new Confirm3dsCommand(payment.getId(), "123456")));
         }
     }
 
@@ -243,7 +246,7 @@ class PaymentSagaOrchestratorTest {
             });
 
             PaymentResultView view = orchestrator.execute(
-                    new ExecutePaymentCommand(payment.getId(), GUARDIAN, null, null, 0, 0, null));
+                    new ExecutePaymentCommand(payment.getId(), null, null, 0, 0, null));
 
             assertEquals(PaymentStatus.SUCCESSFUL, view.status());
             verify(gateway, never()).charge(any(), anyString());
@@ -270,7 +273,7 @@ class PaymentSagaOrchestratorTest {
         void cardWithoutCard() {
             IllegalStateException thrown = assertThrows(IllegalStateException.class,
                     () -> orchestrator.execute(
-                            new ExecutePaymentCommand(payment.getId(), GUARDIAN, null, null, 0, 0, null)));
+                            new ExecutePaymentCommand(payment.getId(), null, null, 0, 0, null)));
             assertTrue(thrown.getMessage().contains("card details"));
         }
     }
@@ -282,9 +285,11 @@ class PaymentSagaOrchestratorTest {
         @Test
         @DisplayName("another guardian cannot charge this payment")
         void wrongGuardian() {
+            org.mockito.Mockito.doThrow(new org.springframework.security.access.AccessDeniedException("Access denied"))
+                    .when(identity).authorizePaymentAccess(GUARDIAN);
             assertThrows(PaymentAccessDeniedException.class,
                     () -> orchestrator.execute(new ExecutePaymentCommand(
-                            payment.getId(), OTHER_GUARDIAN,
+                            payment.getId(),
                             "4111111111111111", "Mohamed", 12, 2030, "123")));
 
             verify(gateway, never()).charge(any(), anyString());
@@ -298,7 +303,7 @@ class PaymentSagaOrchestratorTest {
 
             assertThrows(PaymentAccessDeniedException.class,
                     () -> orchestrator.execute(new ExecutePaymentCommand(
-                            missing, GUARDIAN, "4111111111111111", "Mohamed", 12, 2030, "123")));
+                            missing, "4111111111111111", "Mohamed", 12, 2030, "123")));
         }
     }
     private void gatewayReturns(CardGatewayPort.Result result) {
@@ -315,7 +320,7 @@ class PaymentSagaOrchestratorTest {
     }
 
     private ExecutePaymentCommand chargeCommand() {
-        return new ExecutePaymentCommand(payment.getId(), GUARDIAN,
+        return new ExecutePaymentCommand(payment.getId(),
                 "4111111111111111", "Mohamed Hamouda", 12, 2030, "123");
     }
 

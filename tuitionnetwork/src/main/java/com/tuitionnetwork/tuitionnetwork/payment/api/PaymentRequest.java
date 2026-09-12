@@ -11,8 +11,6 @@ import jakarta.validation.constraints.NotNull;
 public record PaymentRequest(
         @NotNull(message = "studentId is required")
         UUID studentId,
-        @NotNull(message = "processedBy is required")
-        UUID processedBy,
         @NotEmpty(message = "At least one fee line is required")
         @Valid
         List<FeeLineRequest> feeLines,

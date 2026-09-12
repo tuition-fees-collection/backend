@@ -10,11 +10,11 @@ import com.tuitionnetwork.tuitionnetwork.payment.domain.PaymentType;
 public interface GetPaymentUseCase {
 
         /**
-     * @throws com.tuitionnetwork.tuitionnetwork.payment.Services.PaymentAccessDeniedException
-     *         if the payment belongs to a different guardian
+     * @throws com.tuitionnetwork.tuitionnetwork.payment.services.PaymentAccessDeniedException
+     *         if the authenticated actor cannot see this payment
      */
-    PaymentView getById(UUID paymentId, UUID requestingGuardianId);
-    List<PaymentSummary> history(UUID guardianId);
+    PaymentView getById(UUID paymentId);
+    List<PaymentSummary> history();
     record PaymentView(
             UUID paymentId,
             PaymentStatus status,

@@ -10,6 +10,7 @@ public interface PaymentRepository {
     Optional<Payment> findByGuardianIdAndIdempotencyKey(UUID guardianId, String idempotencyKey);
     Optional<Payment> findByGatewayPaymentId(String gatewayPaymentId);
     List<Payment> findByGuardianIdOrderByCreatedAtDesc(UUID guardianId);
+    List<Payment> findByProcessedByOrderByCreatedAtDesc(UUID processedBy);
     List<Payment> findInFlightOlderThan(Instant cutoff);
     List<Payment> findUnresolvedOlderThan(Instant cutoff);
 }

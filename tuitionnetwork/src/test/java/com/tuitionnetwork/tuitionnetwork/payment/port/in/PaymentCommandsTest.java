@@ -68,7 +68,7 @@ class PaymentCommandsTest {
         }
 
         private CreatePaymentUseCase.CreatePaymentCommand command(List<CreatePaymentUseCase.FeeLine> lines) {
-            return new CreatePaymentUseCase.CreatePaymentCommand("idem-1", GUARDIAN, OFFICER,
+            return new CreatePaymentUseCase.CreatePaymentCommand("idem-1",
                     STUDENT, lines, PaymentMethod.CREDIT_CARD, PaymentType.PARTIAL, "EGP");
         }
     }
@@ -81,7 +81,7 @@ class PaymentCommandsTest {
         @DisplayName("ExecutePaymentCommand.toString hides the PAN and the CVV")
         void executeCommandIsRedacted() {
             var command = new ExecutePaymentSagaUseCase.ExecutePaymentCommand(
-                    UUID.randomUUID(), GUARDIAN, "4111111111111111", "MOHAMED HAMOUDA", 12, 2030, "123");
+                    UUID.randomUUID(), "4111111111111111", "MOHAMED HAMOUDA", 12, 2030, "123");
 
             String printed = command.toString();
             assertFalse(printed.contains("4111111111111111"), "toString must not print the card number");
@@ -94,7 +94,7 @@ class PaymentCommandsTest {
         @DisplayName("Confirm3dsCommand.toString hides the OTP")
         void confirm3dsIsRedacted() {
             var command = new ExecutePaymentSagaUseCase.Confirm3dsCommand(
-                    UUID.randomUUID(), GUARDIAN, "123456");
+                    UUID.randomUUID(), "123456");
 
             String printed = command.toString();
             assertFalse(printed.contains("123456"), "an OTP in a log is a replayable credential");

@@ -9,14 +9,26 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingRequestHeaderException;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 import com.tuitionnetwork.tuitionnetwork.payment.domain.IllegalPaymentTransitionException;
 import com.tuitionnetwork.tuitionnetwork.payment.services.PaymentAccessDeniedException;
 import com.tuitionnetwork.tuitionnetwork.payment.services.Paymentvalidationexception;
 @RestControllerAdvice
 public class PaymentExceptionHandler {
     private static final Logger log = LoggerFactory.getLogger(PaymentExceptionHandler.class);
+    @ExceptionHandler(AccessDeniedException.class)
+    ResponseEntity<ApiError> forbidden(AccessDeniedException e) {
+        return respond(HttpStatus.FORBIDDEN, "ACCESS_DENIED", "Access denied");
+    }
+
+    @ExceptionHandler(NoResourceFoundException.class)
+    ResponseEntity<ApiError> missingRoute(NoResourceFoundException e) {
+        return respond(HttpStatus.NOT_FOUND, "NOT_FOUND", "Not found");
+    }
+
     @ExceptionHandler(PaymentAccessDeniedException.class)
     ResponseEntity<ApiError> accessDenied(PaymentAccessDeniedException e) {
         log.warn("Access denied for guardian {} on resource {}",

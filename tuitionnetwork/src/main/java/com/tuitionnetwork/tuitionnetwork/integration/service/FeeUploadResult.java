@@ -6,6 +6,8 @@ import java.util.UUID;
 public record FeeUploadResult(
         UUID batchId,
         String status,
+        String fileChecksum,
+        String externalBatchReference,
         int rowCount,
         int errorCount,
         List<FeeUploadRow> acceptedRows,

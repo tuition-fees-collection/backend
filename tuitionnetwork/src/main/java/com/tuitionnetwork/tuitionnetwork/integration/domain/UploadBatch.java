@@ -35,6 +35,12 @@ public class UploadBatch {
     @Column(nullable = false)
     private String filename;
 
+    @Column(name = "file_checksum", nullable = false, length = 64)
+    private String fileChecksum;
+
+    @Column(name = "external_batch_reference", length = 255)
+    private String externalBatchReference;
+
     @Column(name = "uploaded_at", nullable = false)
     private OffsetDateTime uploadedAt;
 
@@ -56,11 +62,14 @@ public class UploadBatch {
         
     }
 
-    public static UploadBatch start(UUID institutionId, UUID uploadedBy, String filename) {
+    public static UploadBatch start(UUID institutionId, UUID uploadedBy, String filename,
+                                    String fileChecksum, String externalBatchReference) {
         UploadBatch batch = new UploadBatch();
         batch.institutionId = institutionId;
         batch.uploadedBy = uploadedBy;
         batch.filename = filename;
+        batch.fileChecksum = fileChecksum;
+        batch.externalBatchReference = externalBatchReference;
         batch.uploadedAt = OffsetDateTime.now();
         batch.status = UploadStatus.PROCESSING;
         return batch;
@@ -70,12 +79,12 @@ public class UploadBatch {
         errors.add(new UploadError(this, rowNumber, reason));
     }
 
-    public void finish(int totalRows) {
+    public void finish(int totalRows, int acceptedRows) {
         this.rowCount = totalRows;
         this.errorCount = errors.size();
-        this.status = errorCount == 0
+        this.status = acceptedRows == totalRows
                 ? UploadStatus.COMPLETED
-                : (errorCount == totalRows ? UploadStatus.FAILED : UploadStatus.COMPLETED_WITH_ERRORS);
+                : (acceptedRows == 0 ? UploadStatus.FAILED : UploadStatus.COMPLETED_WITH_ERRORS);
     }
 
     public UUID getId() {
@@ -92,6 +101,14 @@ public class UploadBatch {
 
     public String getFilename() {
         return filename;
+    }
+
+    public String getFileChecksum() {
+        return fileChecksum;
+    }
+
+    public String getExternalBatchReference() {
+        return externalBatchReference;
     }
 
     public OffsetDateTime getUploadedAt() {

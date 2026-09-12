@@ -9,6 +9,7 @@ import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class FeeUploadValidatorTest {
 
@@ -27,6 +28,10 @@ class FeeUploadValidatorTest {
     private InputStream csv(String... lines) {
         String content = "national_id,fee_type,amount,currency,collection_period,parent_national_id,parent_full_name\n"
                 + String.join("\n", lines);
+        return new ByteArrayInputStream(content.getBytes(StandardCharsets.UTF_8));
+    }
+
+    private InputStream rawCsv(String content) {
         return new ByteArrayInputStream(content.getBytes(StandardCharsets.UTF_8));
     }
 
@@ -127,5 +132,93 @@ class FeeUploadValidatorTest {
         assertThat(outcome.acceptedRows()).hasSize(2);
         assertThat(outcome.errors()).hasSize(1);
         assertThat(outcome.errors().get(0).rowNumber()).isEqualTo(2);
+    }
+
+    @Test
+    void validatesStudentAndParentNationalIdsIndependently() {
+        var outcome = validator.validate(csv(
+                "student-id,TUITION,5000,EGP," + futurePeriod() + ",parent-id,Ahmed Mohamed"));
+
+        assertThat(outcome.acceptedRows()).isEmpty();
+        assertThat(outcome.errors()).extracting(FeeUploadResult.RowError::reason)
+                .anyMatch(reason -> reason.contains("student national ID"))
+                .anyMatch(reason -> reason.contains("parent national ID"));
+    }
+
+    @Test
+    void rejectsUnsupportedCurrency() {
+        var outcome = validator.validate(csv(
+                row("29901234567890", "TUITION", "5000", "USD", futurePeriod())));
+
+        assertThat(outcome.acceptedRows()).isEmpty();
+        assertThat(outcome.errors()).extracting(FeeUploadResult.RowError::reason)
+                .containsExactly("Unsupported currency: USD; allowed=[EGP]");
+    }
+
+    @Test
+    void rejectsMissingOrUnexpectedHeadersBeforeReadingRows() {
+        String content = "national_id,fee_type,amount,currency,collection_period,parent_national_id,extra\n"
+                + "29901234567890,TUITION,5000,EGP," + futurePeriod() + ",19001112223344,value";
+
+        assertThatThrownBy(() -> validator.validate(rawCsv(content)))
+                .isInstanceOf(UploadValidationException.class)
+                .satisfies(error -> {
+                    UploadValidationException exception = (UploadValidationException) error;
+                    assertThat(exception.code()).isEqualTo("INVALID_HEADERS");
+                    assertThat(exception.getMessage()).contains("parent_full_name", "extra");
+                });
+    }
+
+    @Test
+    void rejectsDuplicateHeaders() {
+        String content = "national_id,national_id,amount,currency,collection_period,parent_national_id,parent_full_name\n";
+
+        assertThatThrownBy(() -> validator.validate(rawCsv(content)))
+                .isInstanceOf(UploadValidationException.class)
+                .satisfies(error -> assertThat(((UploadValidationException) error).code())
+                        .isEqualTo("INVALID_HEADERS"));
+    }
+
+    @Test
+    void rejectsFilesOverConfiguredSizeLimit() {
+        byte[] content = new byte[FeeUploadValidator.MAX_FILE_SIZE_BYTES + 1];
+
+        assertThatThrownBy(() -> validator.validate(new ByteArrayInputStream(content)))
+                .isInstanceOf(UploadValidationException.class)
+                .satisfies(error -> assertThat(((UploadValidationException) error).code())
+                        .isEqualTo("FILE_TOO_LARGE"));
+    }
+
+    @Test
+    void rejectsFilesOverConfiguredRowLimit() {
+        StringBuilder content = new StringBuilder(
+                "national_id,fee_type,amount,currency,collection_period,parent_national_id,parent_full_name\n");
+        String validRow = row("29901234567890", "TUITION", "5000", "EGP", futurePeriod());
+        for (int i = 0; i <= FeeUploadValidator.MAX_ROW_COUNT; i++) {
+            content.append(validRow).append('\n');
+        }
+
+        assertThatThrownBy(() -> validator.validate(rawCsv(content.toString())))
+                .isInstanceOf(UploadValidationException.class)
+                .satisfies(error -> assertThat(((UploadValidationException) error).code())
+                        .isEqualTo("ROW_LIMIT_EXCEEDED"));
+    }
+
+    @Test
+    void producesStableSha256ChecksumFromOriginalFileContent() {
+        String line = row("29901234567890", "TUITION", "5000", "EGP", futurePeriod());
+
+        var first = validator.validate(csv(line));
+        var second = validator.validate(csv(line));
+
+        assertThat(first.fileChecksum()).hasSize(64).isEqualTo(second.fileChecksum());
+    }
+
+    @Test
+    void rejectsAHeaderOnlyFile() {
+        assertThatThrownBy(() -> validator.validate(csv()))
+                .isInstanceOf(UploadValidationException.class)
+                .satisfies(error -> assertThat(((UploadValidationException) error).code())
+                        .isEqualTo("NO_DATA_ROWS"));
     }
 }

@@ -15,6 +15,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 
 @SpringBootTest
@@ -79,6 +80,7 @@ class FeeUploadServiceIntegrationTest {
         var persisted = uploadBatchRepository.findById(result.batchId()).orElseThrow();
         assertThat(persisted.getFilename()).isEqualTo("dues.csv");
         assertThat(persisted.getInstitutionId()).isEqualTo(institutionId);
+        assertThat(persisted.getFileChecksum()).hasSize(64);
         assertThat(persisted.getErrors()).hasSize(1);
         assertThat(persisted.getErrors().get(0).getReason()).contains("Unknown fee type");
     }
@@ -107,5 +109,83 @@ class FeeUploadServiceIntegrationTest {
 
         assertThat(result.status()).isEqualTo("FAILED");
         assertThat(result.acceptedRows()).isEmpty();
+    }
+
+    @Test
+    void sameFileForSameInstitutionReturnsExistingBatchAsDuplicate() {
+        UUID institutionId = seedInstitution();
+        UUID uploadedBy = seedInstitutionUser(institutionId);
+        String line = "29901234567890,TUITION,5000,EGP," + futurePeriod
+                + ",19001112223344,Ahmed Mohamed";
+
+        FeeUploadResult first = feeUploadService.submit(
+                institutionId, uploadedBy, "first.csv", "EXT-100", csv(line));
+
+        assertThatThrownBy(() -> feeUploadService.submit(
+                institutionId, uploadedBy, "renamed.csv", "EXT-101", csv(line)))
+                .isInstanceOf(DuplicateUploadException.class)
+                .satisfies(error -> {
+                    DuplicateUploadException duplicate = (DuplicateUploadException) error;
+                    assertThat(duplicate.existingBatchId()).isEqualTo(first.batchId());
+                    assertThat(duplicate.existingStatus()).isEqualTo("COMPLETED");
+                    assertThat(duplicate.matchedBy()).isEqualTo("FILE_CHECKSUM");
+                });
+    }
+
+    @Test
+    void reusedExternalReferenceIsDuplicateEvenWhenFileChanged() {
+        UUID institutionId = seedInstitution();
+        UUID uploadedBy = seedInstitutionUser(institutionId);
+
+        FeeUploadResult first = feeUploadService.submit(
+                institutionId,
+                uploadedBy,
+                "first.csv",
+                "EXT-200",
+                csv("29901234567890,TUITION,5000,EGP," + futurePeriod
+                        + ",19001112223344,Ahmed Mohamed"));
+
+        assertThatThrownBy(() -> feeUploadService.submit(
+                institutionId,
+                uploadedBy,
+                "changed.csv",
+                "EXT-200",
+                csv("30001234567890,TUITION,6000,EGP," + futurePeriod
+                        + ",19001112223344,Ahmed Mohamed")))
+                .isInstanceOf(DuplicateUploadException.class)
+                .satisfies(error -> {
+                    DuplicateUploadException duplicate = (DuplicateUploadException) error;
+                    assertThat(duplicate.existingBatchId()).isEqualTo(first.batchId());
+                    assertThat(duplicate.matchedBy()).isEqualTo("EXTERNAL_BATCH_REFERENCE");
+                });
+    }
+
+    @Test
+    void sameFileCanBeSubmittedByDifferentInstitutions() {
+        UUID firstInstitution = seedInstitution();
+        UUID secondInstitution = seedInstitution();
+        String line = "29901234567890,TUITION,5000,EGP," + futurePeriod
+                + ",19001112223344,Ahmed Mohamed";
+
+        FeeUploadResult first = feeUploadService.submit(
+                firstInstitution, seedInstitutionUser(firstInstitution), "dues.csv", "EXT-1", csv(line));
+        FeeUploadResult second = feeUploadService.submit(
+                secondInstitution, seedInstitutionUser(secondInstitution), "dues.csv", "EXT-1", csv(line));
+
+        assertThat(second.batchId()).isNotEqualTo(first.batchId());
+        assertThat(second.fileChecksum()).isEqualTo(first.fileChecksum());
+    }
+
+    @Test
+    void databaseContainsBothUploadUniquenessConstraints() {
+        Integer constraintCount = jdbcTemplate.queryForObject("""
+                SELECT count(*)
+                FROM pg_constraint
+                WHERE conname IN (
+                    'uq_upload_batch_institution_checksum',
+                    'uq_upload_batch_institution_external_ref')
+                """, Integer.class);
+
+        assertThat(constraintCount).isEqualTo(2);
     }
 }

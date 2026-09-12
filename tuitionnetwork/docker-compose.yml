@@ -35,6 +35,8 @@ services:
   app:
     build: .
     environment:
+      JWT_SECRET_BASE64: ${JWT_SECRET_BASE64}
+      NATIONAL_ID_HMAC_KEY_BASE64: ${NATIONAL_ID_HMAC_KEY_BASE64}
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/tuition
       SPRING_DATASOURCE_USERNAME: tuition
       SPRING_DATASOURCE_PASSWORD: tuition

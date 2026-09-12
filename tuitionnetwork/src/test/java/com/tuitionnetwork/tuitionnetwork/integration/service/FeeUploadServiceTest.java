@@ -1,9 +1,12 @@
 package com.tuitionnetwork.tuitionnetwork.integration.service;
 
 import com.tuitionnetwork.tuitionnetwork.integration.infra.UploadBatchRepository;
+import com.tuitionnetwork.tuitionnetwork.integration.infra.ports.FeeProvisioningPort;
 import com.tuitionnetwork.tuitionnetwork.integration.infra.ports.GuardianProvisioningPort;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
@@ -26,6 +29,7 @@ class FeeUploadServiceTest {
     private final FeeUploadValidator validator = mock(FeeUploadValidator.class);
     private final UploadBatchRepository uploadBatchRepository = mock(UploadBatchRepository.class);
     private final GuardianProvisioningPort guardianProvisioningPort = mock(GuardianProvisioningPort.class);
+    private final FeeProvisioningPort feeProvisioningPort = mock(FeeProvisioningPort.class);
 
     private InputStream anyCsv() {
         return new ByteArrayInputStream(new byte[0]);
@@ -48,7 +52,7 @@ class FeeUploadServiceTest {
         when(guardianProvisioningPort.upsertGuardianStub(any(), any())).thenReturn(UUID.randomUUID());
 
         FeeUploadService service = new FeeUploadService(validator, uploadBatchRepository,
-                Optional.of(guardianProvisioningPort));
+                Optional.of(guardianProvisioningPort), Optional.empty());
 
         service.submit(UUID.randomUUID(), UUID.randomUUID(), "dues.csv", anyCsv());
 
@@ -61,7 +65,8 @@ class FeeUploadServiceTest {
         when(validator.validate(any())).thenReturn(validOutcome(row));
         when(uploadBatchRepository.saveAndFlush(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
-        FeeUploadService service = new FeeUploadService(validator, uploadBatchRepository, Optional.empty());
+        FeeUploadService service = new FeeUploadService(
+                validator, uploadBatchRepository, Optional.empty(), Optional.empty());
 
         FeeUploadResult result = service.submit(UUID.randomUUID(), UUID.randomUUID(), "dues.csv", anyCsv());
 
@@ -80,7 +85,7 @@ class FeeUploadServiceTest {
                 .thenReturn(Optional.of(existing));
 
         FeeUploadService service = new FeeUploadService(
-                validator, uploadBatchRepository, Optional.empty());
+                validator, uploadBatchRepository, Optional.empty(), Optional.empty());
 
         assertThatThrownBy(() -> service.submit(
                 UUID.randomUUID(), UUID.randomUUID(), "second.csv", "BATCH-2", anyCsv()))
@@ -102,7 +107,7 @@ class FeeUploadServiceTest {
                 .thenReturn(Optional.of(existing));
 
         FeeUploadService service = new FeeUploadService(
-                validator, uploadBatchRepository, Optional.empty());
+                validator, uploadBatchRepository, Optional.empty(), Optional.empty());
 
         assertThatThrownBy(() -> service.submit(
                 UUID.randomUUID(), UUID.randomUUID(), "changed.csv", "BATCH-1", anyCsv()))
@@ -123,12 +128,42 @@ class FeeUploadServiceTest {
                 new DataIntegrityViolationException("duplicate", uniqueViolation));
 
         FeeUploadService service = new FeeUploadService(
-                validator, uploadBatchRepository, Optional.empty());
+                validator, uploadBatchRepository, Optional.empty(), Optional.empty());
 
         assertThatThrownBy(() -> service.submit(
                 UUID.randomUUID(), UUID.randomUUID(), "dues.csv", null, anyCsv()))
                 .isInstanceOf(DuplicateUploadException.class)
                 .satisfies(error -> assertThat(((DuplicateUploadException) error).matchedBy())
                         .isEqualTo("FILE_CHECKSUM"));
+    }
+
+    @Test
+    void provisionsBillingFeeForEveryAcceptedCsvRow() {
+        FeeUploadRow row = acceptedRow("19001112223344", "Ahmed Mohamed");
+        UUID institutionId = UUID.randomUUID();
+        when(validator.validate(any())).thenReturn(validOutcome(row));
+        when(feeProvisioningPort.isAvailable()).thenReturn(true);
+        when(uploadBatchRepository.saveAndFlush(any())).thenAnswer(invocation -> {
+            Object batch = invocation.getArgument(0);
+            ReflectionTestUtils.setField(batch, "id", UUID.randomUUID());
+            return batch;
+        });
+
+        FeeUploadService service = new FeeUploadService(
+                validator,
+                uploadBatchRepository,
+                Optional.empty(),
+                Optional.of(feeProvisioningPort));
+
+        service.submit(institutionId, UUID.randomUUID(), "dues.csv", anyCsv());
+
+        ArgumentCaptor<FeeProvisioningPort.Command> command =
+                ArgumentCaptor.forClass(FeeProvisioningPort.Command.class);
+        verify(feeProvisioningPort).provisionFee(command.capture());
+        assertThat(command.getValue().studentNationalId()).isEqualTo("29901234567890");
+        assertThat(command.getValue().institutionId()).isEqualTo(institutionId);
+        assertThat(command.getValue().feeType()).isEqualTo("TUITION");
+        assertThat(command.getValue().amount()).isEqualByComparingTo("5000");
+        assertThat(command.getValue().sourceBatchId()).isNotNull();
     }
 }

@@ -2,6 +2,7 @@ package com.tuitionnetwork.tuitionnetwork.integration.service;
 
 import com.tuitionnetwork.tuitionnetwork.integration.domain.UploadBatch;
 import com.tuitionnetwork.tuitionnetwork.integration.infra.UploadBatchRepository;
+import com.tuitionnetwork.tuitionnetwork.integration.infra.ports.FeeProvisioningPort;
 import com.tuitionnetwork.tuitionnetwork.integration.infra.ports.GuardianProvisioningPort;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
@@ -21,12 +22,15 @@ public class FeeUploadService {
 
 
     private final Optional<GuardianProvisioningPort> guardianProvisioningPort;
+    private final Optional<FeeProvisioningPort> feeProvisioningPort;
 
     public FeeUploadService(FeeUploadValidator validator, UploadBatchRepository uploadBatchRepository,
-                             Optional<GuardianProvisioningPort> guardianProvisioningPort) {
+                            Optional<GuardianProvisioningPort> guardianProvisioningPort,
+                            Optional<FeeProvisioningPort> feeProvisioningPort) {
         this.validator = validator;
         this.uploadBatchRepository = uploadBatchRepository;
         this.guardianProvisioningPort = guardianProvisioningPort;
+        this.feeProvisioningPort = feeProvisioningPort;
     }
 
     @Transactional
@@ -60,6 +64,19 @@ public class FeeUploadService {
             for (FeeUploadRow row : outcome.acceptedRows()) {
                 port.upsertGuardianStub(row.parentNationalId(), row.parentFullName());
 
+            }
+        });
+
+        feeProvisioningPort.filter(FeeProvisioningPort::isAvailable).ifPresent(port -> {
+            for (FeeUploadRow row : outcome.acceptedRows()) {
+                port.provisionFee(new FeeProvisioningPort.Command(
+                        row.nationalId(),
+                        institutionId,
+                        row.feeType(),
+                        row.collectionPeriod(),
+                        row.currency(),
+                        row.amount(),
+                        batch.getId()));
             }
         });
 

@@ -13,7 +13,7 @@ public class DevPaymentSecurityConfig {
     @Order(1)
     SecurityFilterChain devPaymentEndpoints(HttpSecurity http) throws Exception {
         return http
-                .securityMatcher("/api/v1/payment-orders/**", "/api/v1/receipts/**", "/api/v1/admin/**")
+                .securityMatcher("/api/v1/receipts/**")
                 .authorizeHttpRequests(requests -> requests.anyRequest().permitAll())
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(

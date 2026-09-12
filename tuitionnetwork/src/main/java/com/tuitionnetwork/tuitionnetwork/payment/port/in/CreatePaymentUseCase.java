@@ -10,8 +10,6 @@ public interface CreatePaymentUseCase {
     PaymentOrderView create(CreatePaymentCommand command);
      record CreatePaymentCommand(
             String idempotencyKey,
-            UUID guardianId,
-            UUID processedBy,
             UUID studentId,
             List<FeeLine> feeLines,
             PaymentMethod method,

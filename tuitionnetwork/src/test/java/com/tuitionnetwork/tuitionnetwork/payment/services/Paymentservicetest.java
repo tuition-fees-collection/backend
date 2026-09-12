@@ -6,7 +6,6 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -36,8 +35,10 @@ import com.tuitionnetwork.tuitionnetwork.payment.domain.event.PaymentCreatedEven
 import com.tuitionnetwork.tuitionnetwork.payment.port.in.CreatePaymentUseCase.CreatePaymentCommand;
 import com.tuitionnetwork.tuitionnetwork.payment.port.in.CreatePaymentUseCase.FeeLine;
 import com.tuitionnetwork.tuitionnetwork.payment.port.in.CreatePaymentUseCase.PaymentOrderView;
+import com.tuitionnetwork.tuitionnetwork.identity.domain.RoleCode;
+import com.tuitionnetwork.tuitionnetwork.identity.service.IdentityAccessService;
+import com.tuitionnetwork.tuitionnetwork.identity.service.PaymentCaller;
 import com.tuitionnetwork.tuitionnetwork.payment.port.portout.BillingPort;
-import com.tuitionnetwork.tuitionnetwork.payment.port.portout.IdentityPort;
 import com.tuitionnetwork.tuitionnetwork.payment.port.portout.OutboxEventPort;
 import com.tuitionnetwork.tuitionnetwork.payment.port.portout.PaymentAllocationRepository;
 import com.tuitionnetwork.tuitionnetwork.payment.port.portout.PaymentRepository;
@@ -56,7 +57,7 @@ class PaymentServiceTest {
     @Mock private PaymentRepository payments;
     @Mock private PaymentAllocationRepository allocations;
     @Mock private BillingPort billing;
-    @Mock private IdentityPort identity;
+    @Mock private IdentityAccessService identity;
     @Mock private OutboxEventPort outbox;
 
     private PaymentService service;
@@ -66,8 +67,10 @@ class PaymentServiceTest {
         service = new PaymentService(payments, allocations, billing, identity, outbox,
                 JsonMapper.builder().build());
         when(payments.findByGuardianIdAndIdempotencyKey(any(), any())).thenReturn(Optional.empty());
-        when(identity.canAccessStudent(GUARDIAN, STUDENT)).thenReturn(true);
-        when(identity.canAccessStudent(eq(GUARDIAN), eq(OTHER_STUDENT))).thenReturn(false);
+        when(identity.authorizePaymentCreation(STUDENT))
+                .thenReturn(new PaymentCaller(GUARDIAN, OFFICER, RoleCode.PAYER));
+        when(identity.authorizePaymentCreation(OTHER_STUDENT))
+                .thenThrow(new org.springframework.security.access.AccessDeniedException("Access denied"));
         when(payments.save(any(Payment.class))).thenAnswer(call -> savedPayment(call.getArgument(0)));
     }
     @Nested
@@ -156,7 +159,9 @@ class PaymentServiceTest {
             billingReturns(payableFee(FOREIGN_FEE, OTHER_STUDENT, "12000.00", "0.00", "OUTSTANDING"));
 
             assertThrows(PaymentAccessDeniedException.class,
-                    () -> service.create(command(PaymentType.FULL, line(FOREIGN_FEE, "12000.00"))));
+                    () -> service.create(new CreatePaymentCommand("idem-" + UUID.randomUUID(),
+                            OTHER_STUDENT, List.of(line(FOREIGN_FEE, "12000.00")),
+                            PaymentMethod.CREDIT_CARD, PaymentType.FULL, "EGP")));
 
             verify(payments, never()).save(any(Payment.class));
         }
@@ -249,8 +254,8 @@ class PaymentServiceTest {
         return commandWithKey("idem-" + UUID.randomUUID(), type, lines);
     }
     private static CreatePaymentCommand commandWithKey(String key, PaymentType type, FeeLine... lines) {
-        return new CreatePaymentCommand(key, GUARDIAN, OFFICER,
-                STUDENT, List.of(lines), PaymentMethod.CREDIT_CARD, type, "EGP");
+        return new CreatePaymentCommand(key, STUDENT, List.of(lines),
+                PaymentMethod.CREDIT_CARD, type, "EGP");
     }
 
     private static Payment savedPayment(Payment payment) {

@@ -1,45 +1,53 @@
 package com.tuitionnetwork.tuitionnetwork.payment.services;
+
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
 import tools.jackson.databind.json.JsonMapper;
+
+import com.tuitionnetwork.tuitionnetwork.identity.service.IdentityAccessService;
+import com.tuitionnetwork.tuitionnetwork.identity.service.PaymentCaller;
 import com.tuitionnetwork.tuitionnetwork.payment.domain.OutboxEvent;
 import com.tuitionnetwork.tuitionnetwork.payment.domain.Payment;
 import com.tuitionnetwork.tuitionnetwork.payment.domain.PaymentAllocation;
+import com.tuitionnetwork.tuitionnetwork.payment.domain.PaymentMethod;
 import com.tuitionnetwork.tuitionnetwork.payment.domain.PaymentType;
 import com.tuitionnetwork.tuitionnetwork.payment.domain.event.PaymentCreatedEvent;
 import com.tuitionnetwork.tuitionnetwork.payment.port.in.CreatePaymentUseCase;
 import com.tuitionnetwork.tuitionnetwork.payment.port.portout.BillingPort;
-import com.tuitionnetwork.tuitionnetwork.payment.port.portout.IdentityPort;
 import com.tuitionnetwork.tuitionnetwork.payment.port.portout.OutboxEventPort;
 import com.tuitionnetwork.tuitionnetwork.payment.port.portout.PaymentAllocationRepository;
 import com.tuitionnetwork.tuitionnetwork.payment.port.portout.PaymentRepository;
+
 @Service
 public class PaymentService implements CreatePaymentUseCase {
     private static final Logger log = LoggerFactory.getLogger(PaymentService.class);
     private final PaymentRepository payments;
     private final PaymentAllocationRepository allocations;
     private final BillingPort billing;
-    private final IdentityPort identity;
+    private final IdentityAccessService identity;
     private final OutboxEventPort outbox;
-   private final JsonMapper json;
+    private final JsonMapper json;
+
     public PaymentService(PaymentRepository payments,
-                      PaymentAllocationRepository allocations,
-                      BillingPort billing,
-                      IdentityPort identity,
-                      OutboxEventPort outbox,
-                      JsonMapper json) {
+                          PaymentAllocationRepository allocations,
+                          BillingPort billing,
+                          IdentityAccessService identity,
+                          OutboxEventPort outbox,
+                          JsonMapper json) {
         this.payments = payments;
         this.allocations = allocations;
         this.billing = billing;
@@ -47,37 +55,41 @@ public class PaymentService implements CreatePaymentUseCase {
         this.outbox = outbox;
         this.json = json;
     }
+
     @Override
     @Transactional
     public PaymentOrderView create(CreatePaymentCommand command) {
+        PaymentCaller caller = callerFor(command.studentId());
+        if (command.method() == PaymentMethod.CASH) {
+            identity.requireCashCollection();
+        }
+
         Optional<Payment> existing =
-                payments.findByGuardianIdAndIdempotencyKey(command.guardianId(), command.idempotencyKey());
+                payments.findByGuardianIdAndIdempotencyKey(caller.guardianId(), command.idempotencyKey());
         if (existing.isPresent()) {
             log.info("Idempotent replay of key {} for guardian {}",
-                    command.idempotencyKey(), command.guardianId());
+                    command.idempotencyKey(), caller.guardianId());
             return view(existing.get(), true);
         }
+
         List<UUID> feeIds = command.feeLines().stream().map(FeeLine::feeId).toList();
         if (new HashSet<>(feeIds).size() != feeIds.size()) {
             throw new Paymentvalidationexception("DUPLICATE_FEE_LINE",
                     "The same fee appears more than once in this payment");
         }
+
         Map<UUID, BillingPort.PayableFee> fees = billing.loadPayable(feeIds).stream()
                 .collect(Collectors.toMap(BillingPort.PayableFee::feeId, Function.identity()));
-        Set<UUID> checkedStudents = new HashSet<>();
+
         for (UUID feeId : feeIds) {
             BillingPort.PayableFee fee = fees.get(feeId);
-            if (fee == null) {
-                throw new PaymentAccessDeniedException(command.guardianId(), feeId);
-            }
-            if (checkedStudents.add(fee.studentId())
-                    && !identity.canAccessStudent(command.guardianId(), fee.studentId())) {
-                throw new PaymentAccessDeniedException(command.guardianId(), feeId);
+            if (fee == null || !command.studentId().equals(fee.studentId())) {
+                throw new PaymentAccessDeniedException(caller.guardianId(), feeId);
             }
         }
+
         for (FeeLine line : command.feeLines()) {
             BillingPort.PayableFee fee = fees.get(line.feeId());
-
             if (!fee.isPayable()) {
                 throw new Paymentvalidationexception("FEE_NOT_PAYABLE",
                         "This fee is no longer outstanding");
@@ -92,15 +104,17 @@ public class PaymentService implements CreatePaymentUseCase {
                         "A full payment must clear the whole outstanding balance of every fee line");
             }
         }
+
         BigDecimal total = command.totalAmount();
         Payment payment = payments.save(Payment.create(
                 command.idempotencyKey(),
-                command.guardianId(),
-                command.processedBy(),
+                caller.guardianId(),
+                caller.processedBy(),
                 command.method(),
                 command.paymentType(),
                 total,
                 command.currency()));
+
         List<PaymentAllocation> rows = new ArrayList<>();
         BigDecimal allocated = BigDecimal.ZERO;
         for (FeeLine line : command.feeLines()) {
@@ -129,18 +143,27 @@ public class PaymentService implements CreatePaymentUseCase {
         return view(payment, false);
     }
 
+    private PaymentCaller callerFor(UUID studentId) {
+        try {
+            return identity.authorizePaymentCreation(studentId);
+        } catch (AccessDeniedException e) {
+            throw new PaymentAccessDeniedException(studentId, studentId);
+        }
+    }
+
     private PaymentOrderView view(Payment payment, boolean replay) {
-       return new PaymentOrderView(
-        payment.getId(),
-        payment.getStatus(),
-        payment.getAmount(),
-        payment.getCurrency(),
-        payment.getMethod(),        
-        payment.getPaymentType(),   
-        payment.getCreatedAt(),    
-        payment.getExpiresAt(),
-        replay);
-       }
+        return new PaymentOrderView(
+                payment.getId(),
+                payment.getStatus(),
+                payment.getAmount(),
+                payment.getCurrency(),
+                payment.getMethod(),
+                payment.getPaymentType(),
+                payment.getCreatedAt(),
+                payment.getExpiresAt(),
+                replay);
+    }
+
     private String serialise(Object event) {
         try {
             return json.writeValueAsString(event);

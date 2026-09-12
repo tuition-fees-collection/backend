@@ -11,6 +11,7 @@ public interface  PaymentJpaRepository extends JpaRepository<Payment, UUID> {
 Optional<Payment> findByGuardianIdAndIdempotencyKey(UUID guardianId, String idempotencyKey);
 Optional<Payment> findByGatewayPaymentId(String gatewayPaymentId);
  List<Payment> findByGuardianIdOrderByCreatedAtDesc(UUID guardianId);
+ List<Payment> findByProcessedByOrderByCreatedAtDesc(UUID processedBy);
  List<Payment> findByStatusInAndCreatedAtBefore(Collection<PaymentStatus> statuses, Instant cutoff);
          
 }

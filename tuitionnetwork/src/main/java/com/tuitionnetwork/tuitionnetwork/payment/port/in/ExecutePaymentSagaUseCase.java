@@ -6,7 +6,6 @@ public interface ExecutePaymentSagaUseCase {
     PaymentResultView confirm3ds(Confirm3dsCommand command);
     record ExecutePaymentCommand(
             UUID paymentId,
-            UUID guardianId,
             String cardNumber,
             String cardHolderName,
             int expiryMonth,
@@ -15,11 +14,10 @@ public interface ExecutePaymentSagaUseCase {
     ) {
         @Override
         public String toString() {
-            return "ExecutePaymentCommand[paymentId=" + paymentId
-                    + ", guardianId=" + guardianId + ", card=***REDACTED***]";
+            return "ExecutePaymentCommand[paymentId=" + paymentId + ", card=***REDACTED***]";
         }
     }
-    record Confirm3dsCommand(UUID paymentId, UUID guardianId, String otp) {
+    record Confirm3dsCommand(UUID paymentId, String otp) {
         @Override
         public String toString() {
             return "Confirm3dsCommand[paymentId=" + paymentId + ", otp=***REDACTED***]";

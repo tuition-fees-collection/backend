@@ -15,8 +15,10 @@ import com.tuitionnetwork.tuitionnetwork.payment.port.in.ExecutePaymentSagaUseCa
 import com.tuitionnetwork.tuitionnetwork.payment.port.portout.CardGatewayPort;
 import com.tuitionnetwork.tuitionnetwork.payment.port.portout.PaymentRepository;
 import com.tuitionnetwork.tuitionnetwork.payment.port.portout.ReceiptPort;
+import com.tuitionnetwork.tuitionnetwork.identity.service.IdentityAccessService;
 import com.tuitionnetwork.tuitionnetwork.payment.services.PaymentAccessDeniedException;
 import com.tuitionnetwork.tuitionnetwork.payment.services.strategy.PaymentMethodHandler;
+import org.springframework.security.access.AccessDeniedException;
 @Service
 public class PaymentSagaOrchestrator implements ExecutePaymentSagaUseCase {
     private static final Logger log = LoggerFactory.getLogger(PaymentSagaOrchestrator.class);
@@ -25,23 +27,29 @@ public class PaymentSagaOrchestrator implements ExecutePaymentSagaUseCase {
     private final PaymentSaga saga;
     private final ReceiptPort receipts;
     private final CardGatewayPort gateway;
+    private final IdentityAccessService identity;
     private final Map<PaymentMethod, PaymentMethodHandler> handlers = new EnumMap<>(PaymentMethod.class);
     public PaymentSagaOrchestrator(PaymentRepository payments,
                                    PaymentSettlement settlement,
                                    PaymentSaga saga,
                                    ReceiptPort receipts,
                                    CardGatewayPort gateway,
+                                   IdentityAccessService identity,
                                    List<PaymentMethodHandler> methodHandlers) {
         this.payments = payments;
         this.settlement = settlement;
         this.saga = saga;
         this.receipts = receipts;
         this.gateway = gateway;
+        this.identity = identity;
         methodHandlers.forEach(handler -> this.handlers.put(handler.handles(), handler));
                                    }
     @Override
     public PaymentResultView execute(ExecutePaymentCommand command) {
-        Payment payment = load(command.paymentId(), command.guardianId());
+        Payment payment = load(command.paymentId());
+        if (payment.getMethod() == PaymentMethod.CASH) {
+            identity.requireCashCollection();
+        }
         payment = settlement.markPending(payment);
         boolean cardSupplied = command.cardNumber() != null && !command.cardNumber().isBlank();
         if (payment.getMethod() == PaymentMethod.CASH && cardSupplied) {
@@ -66,7 +74,7 @@ public class PaymentSagaOrchestrator implements ExecutePaymentSagaUseCase {
     }
     @Override
     public PaymentResultView confirm3ds(Confirm3dsCommand command) {
-        Payment payment = load(command.paymentId(), command.guardianId());
+        Payment payment = load(command.paymentId());
 
         if (payment.getGatewayPaymentId() == null) {
             throw new IllegalStateException("This payment has no provider reference to confirm");
@@ -108,11 +116,13 @@ public class PaymentSagaOrchestrator implements ExecutePaymentSagaUseCase {
 
         throw new IllegalStateException("Unhandled gateway outcome: " + result.outcome());
     }
-    private Payment load(UUID paymentId, UUID guardianId) {
+    private Payment load(UUID paymentId) {
         Payment payment = payments.findById(paymentId)
-                .orElseThrow(() -> new PaymentAccessDeniedException(guardianId, paymentId));
-        if (!payment.getGuardianId().equals(guardianId)) {
-            throw new PaymentAccessDeniedException(guardianId, paymentId);
+                .orElseThrow(() -> new PaymentAccessDeniedException(null, paymentId));
+        try {
+            identity.authorizePaymentAccess(payment.getGuardianId());
+        } catch (AccessDeniedException e) {
+            throw new PaymentAccessDeniedException(null, paymentId);
         }
         return payment;
     }

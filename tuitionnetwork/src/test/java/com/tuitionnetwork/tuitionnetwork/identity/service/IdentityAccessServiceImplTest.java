@@ -13,6 +13,8 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 class IdentityAccessServiceImplTest {
+    private static final UUID ONLINE_CHANNEL = UUID.fromString("22222222-2222-2222-2222-000000000000");
+
     private CurrentActorProvider currentActorProvider;
     private GuardianStudentAccessRepository relationships;
     private IdentityAccessServiceImpl service;
@@ -24,7 +26,8 @@ class IdentityAccessServiceImplTest {
         auditService = mock(AuditService.class);
         currentActorProvider = mock(CurrentActorProvider.class);
         relationships = mock(GuardianStudentAccessRepository.class);
-        service = new IdentityAccessServiceImpl(currentActorProvider, relationships, auditService);
+        service = new IdentityAccessServiceImpl(
+                currentActorProvider, relationships, auditService, ONLINE_CHANNEL);
     }
 
     @Test
@@ -128,6 +131,61 @@ class IdentityAccessServiceImplTest {
         var actor = new AuthenticatedActor(UUID.randomUUID(), UUID.randomUUID(), type, role, institutionId, null);
         when(currentActorProvider.currentActor()).thenReturn(actor);
         return actor;
+    }
+
+    @Test
+    void payerPaymentCreationUsesAuthenticatedGuardianAndOnlineChannel() {
+        var actor = useActor(RoleCode.PAYER, null);
+        UUID studentId = UUID.randomUUID();
+        when(relationships.existsRelationship(actor.actorId(), studentId)).thenReturn(true);
+
+        var caller = service.authorizePaymentCreation(studentId);
+
+        assertEquals(actor.actorId(), caller.guardianId());
+        assertEquals(ONLINE_CHANNEL, caller.processedBy());
+        assertEquals(RoleCode.PAYER, caller.role());
+    }
+
+    @Test
+    void bankOfficerPaymentCreationResolvesGuardianFromStudent() {
+        var actor = useActor(RoleCode.BANK_OFFICER, null);
+        UUID studentId = UUID.randomUUID();
+        UUID guardianId = UUID.randomUUID();
+        when(relationships.findFirstGuardianIdByStudentId(studentId)).thenReturn(java.util.Optional.of(guardianId));
+
+        var caller = service.authorizePaymentCreation(studentId);
+
+        assertEquals(guardianId, caller.guardianId());
+        assertEquals(actor.actorId(), caller.processedBy());
+        assertEquals(RoleCode.BANK_OFFICER, caller.role());
+        verifyNoInteractions(auditService);
+    }
+
+    @Test
+    void adminCannotCreateAPayment() {
+        useActor(RoleCode.ADMIN, null);
+        assertThrows(AccessDeniedException.class, () -> service.authorizePaymentCreation(UUID.randomUUID()));
+    }
+
+    @Test
+    void payerCanAccessOwnPaymentAndNotSomeoneElses() {
+        var actor = useActor(RoleCode.PAYER, null);
+        assertDoesNotThrow(() -> service.authorizePaymentAccess(actor.actorId()));
+        assertThrows(AccessDeniedException.class, () -> service.authorizePaymentAccess(UUID.randomUUID()));
+    }
+
+    @Test
+    void bankOfficerCanAccessAnyPayment() {
+        useActor(RoleCode.BANK_OFFICER, null);
+        assertDoesNotThrow(() -> service.authorizePaymentAccess(UUID.randomUUID()));
+    }
+
+    @Test
+    void onlyBankOfficerCanCollectCash() {
+        useActor(RoleCode.BANK_OFFICER, null);
+        assertDoesNotThrow(service::requireCashCollection);
+        useActor(RoleCode.PAYER, null);
+        assertThrows(AccessDeniedException.class, service::requireCashCollection);
     }
 
     @Test

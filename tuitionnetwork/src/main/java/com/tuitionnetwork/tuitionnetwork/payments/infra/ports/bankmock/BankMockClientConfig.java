@@ -1,5 +1,6 @@
 package com.tuitionnetwork.tuitionnetwork.payments.infra.ports.bankmock;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -8,6 +9,7 @@ import org.springframework.http.HttpStatusCode;
 import org.springframework.web.client.RestClient;
 
 import java.io.IOException;
+import java.util.Map;
 
 
 @Configuration
@@ -22,14 +24,34 @@ public class BankMockClientConfig {
                 .baseUrl(baseUrl)
                 .defaultHeader("X-API-Key", apiKey)
                 .defaultStatusHandler(HttpStatusCode::isError, (request, response) -> {
-                    BankMockErrorResponse body;
+                    JsonNode body;
                     try {
-                        body = objectMapper.readValue(response.getBody(), BankMockErrorResponse.class);
+                        body = objectMapper.readTree(response.getBody());
                     } catch (IOException e) {
                         throw new BankMockApiException("UNKNOWN", "Unreadable error response from bank mock", null);
                     }
-                    BankMockError error = body.error();
-                    throw new BankMockApiException(error.code(), error.message(), error.details());
+                    JsonNode error = body.path("error");
+                    if (!error.isMissingNode() && !error.isNull()) {
+                        Map<String, Object> details = objectMapper.convertValue(
+                                error.path("details"),
+                                new com.fasterxml.jackson.core.type.TypeReference<>() { });
+                        throw new BankMockApiException(
+                                error.path("code").asText("UNKNOWN"),
+                                error.path("message").asText("Bank mock request failed"),
+                                details);
+                    }
+
+                    if (body.has("detail")) {
+                        throw new BankMockApiException(
+                                "VALIDATION_ERROR",
+                                "Bank mock rejected the request",
+                                Map.of("detail", objectMapper.convertValue(body.get("detail"), Object.class)));
+                    }
+
+                    throw new BankMockApiException(
+                            "HTTP_" + response.getStatusCode().value(),
+                            "Bank mock request failed",
+                            Map.of());
                 })
                 .build();
     }

@@ -16,6 +16,7 @@ import java.time.YearMonth;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @SpringBootTest(properties =
         "security.national-id.hmac-key-base64=YWJjZGVmZ2hpamtsbW5vcHFyc3R1dnd4eXpBQkNERUY=")
@@ -40,10 +41,7 @@ class CsvBillingPersistenceIntegrationTest {
     void acceptedCsvRowIsPersistedAsBillingFee() {
         Fixture fixture = seedFixture();
         String period = YearMonth.now().plusMonths(1).toString();
-        String csv = """
-                national_id,fee_type,amount,currency,collection_period,parent_national_id,parent_full_name
-                %s,TUITION,5000,EGP,%s,19001112223344,Ahmed Mohamed
-                """.formatted(STUDENT_NATIONAL_ID, period);
+        String csv = validCsv(period);
 
         FeeUploadResult result = feeUploadService.submit(
                 fixture.institutionId(),
@@ -59,6 +57,41 @@ class CsvBillingPersistenceIntegrationTest {
         assertThat(fees.get(0).getInstitutionId()).isEqualTo(fixture.institutionId());
         assertThat(fees.get(0).getAmount()).isEqualByComparingTo("5000");
         assertThat(fees.get(0).getStatus()).isEqualTo(FeeStatus.OUTSTANDING);
+    }
+
+    @Test
+    void duplicateCsvDoesNotCreateASecondBillingFee() {
+        Fixture fixture = seedFixture();
+        String csv = validCsv(YearMonth.now().plusMonths(1).toString());
+
+        FeeUploadResult original = submit(fixture, "CSV-BILLING-DUPLICATE-1", csv);
+        feeRepository.flush();
+
+        assertThatThrownBy(() -> submit(fixture, "CSV-BILLING-DUPLICATE-2", csv))
+                .isInstanceOfSatisfying(DuplicateUploadException.class, duplicate -> {
+                    assertThat(duplicate.existingBatchId()).isEqualTo(original.batchId());
+                    assertThat(duplicate.matchedBy()).isEqualTo("FILE_CHECKSUM");
+                });
+
+        var persistedFees = feeRepository.findByInstitutionId(fixture.institutionId());
+        assertThat(persistedFees).hasSize(1);
+        assertThat(persistedFees.get(0).getSourceBatchId()).isEqualTo(original.batchId());
+    }
+
+    private FeeUploadResult submit(Fixture fixture, String externalBatchReference, String csv) {
+        return feeUploadService.submit(
+                fixture.institutionId(),
+                fixture.uploaderId(),
+                "fees.csv",
+                externalBatchReference,
+                new ByteArrayInputStream(csv.getBytes(StandardCharsets.UTF_8)));
+    }
+
+    private String validCsv(String period) {
+        return """
+                national_id,fee_type,amount,currency,collection_period,parent_national_id,parent_full_name
+                %s,TUITION,5000,EGP,%s,19001112223344,Ahmed Mohamed
+                """.formatted(STUDENT_NATIONAL_ID, period);
     }
 
     private Fixture seedFixture() {

@@ -16,9 +16,6 @@ import com.tuitionnetwork.tuitionnetwork.payment.domain.PaymentMethod;
 import com.tuitionnetwork.tuitionnetwork.payment.domain.PaymentStatus;
 import com.tuitionnetwork.tuitionnetwork.payment.domain.PaymentType;
 class PaymentCommandsTest {
-
-    private static final UUID GUARDIAN = UUID.randomUUID();
-    private static final UUID OFFICER = UUID.randomUUID();
     private static final UUID STUDENT = UUID.randomUUID();
 
     @Nested

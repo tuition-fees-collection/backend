@@ -44,7 +44,6 @@ import com.tuitionnetwork.tuitionnetwork.payment.port.portout.ReceiptPort;
 @MockitoSettings(strictness = Strictness.LENIENT)
 class PaymentQueryServiceTest {
     private static final UUID GUARDIAN = UUID.randomUUID();
-    private static final UUID OTHER_GUARDIAN = UUID.randomUUID();
     private static final UUID OFFICER = UUID.randomUUID();
     private static final UUID FEE = UUID.randomUUID();
     @Mock private PaymentRepository payments;

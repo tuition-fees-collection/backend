@@ -227,6 +227,18 @@ class PaymentServiceTest {
 
             verify(payments, never()).save(any(Payment.class));
         }
+
+        @Test
+        @DisplayName("an EPP order cannot be created with a debit card")
+        void eppRequiresCreditCard() {
+            PaymentValidationAssert.assertCode("EPP_REQUIRES_CREDIT_CARD",
+                    () -> service.create(new CreatePaymentCommand("idem-" + UUID.randomUUID(),
+                            STUDENT, List.of(line(BUS, "3500.00")),
+                            PaymentMethod.DEBIT_CARD, PaymentType.EPP, "EGP")));
+
+            verify(payments, never()).save(any(Payment.class));
+            verify(billing, never()).loadPayable(anyList());
+        }
     }
     static final class PaymentValidationAssert {
         static void assertCode(String expectedCode, Runnable action) {

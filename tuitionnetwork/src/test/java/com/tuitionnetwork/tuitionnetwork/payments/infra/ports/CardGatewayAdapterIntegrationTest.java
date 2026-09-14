@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.ActiveProfiles;
 
 import java.math.BigDecimal;
 import java.util.UUID;
@@ -20,6 +21,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 // these call the mock bank service on localhost:8000, so make
 // sure it's running before you try these locally.
 @Tag("integration")
+@ActiveProfiles("test")
 @SpringBootTest
 class CardGatewayAdapterIntegrationTest {
 

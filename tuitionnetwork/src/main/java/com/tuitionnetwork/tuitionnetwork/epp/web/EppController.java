@@ -5,6 +5,7 @@ import com.tuitionnetwork.tuitionnetwork.epp.infra.ports.bankmock.EppQuoteRespon
 import com.tuitionnetwork.tuitionnetwork.epp.service.EppPlanNotFoundException;
 import com.tuitionnetwork.tuitionnetwork.epp.service.EppService;
 import com.tuitionnetwork.tuitionnetwork.payments.infra.ports.bankmock.BankMockApiException;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -21,6 +22,7 @@ import java.util.List;
 import java.util.UUID;
 
 @RestController
+@SecurityRequirement(name = "bearerAuth")
 public class EppController {
 
     private final EppService eppService;

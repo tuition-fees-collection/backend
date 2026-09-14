@@ -10,13 +10,13 @@ import java.util.List;
 public class FeeBalanceService{
 
 
-
+    /*get outstanding amount for a fee */
     public BigDecimal getOutstandingAmount(Fee fee){
         return fee.getOutstandingAmount();
     }
 
 
-
+    /* get total outstanding amount for a list of fees */
     public BigDecimal getTotalOutstandingAmount(List<Fee> fees){
         return fees.stream()
         .map(Fee::getOutstandingAmount)

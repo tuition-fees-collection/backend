@@ -1,9 +1,9 @@
 package com.tuitionnetwork.tuitionnetwork.payments.infra.ports;
 
+import com.tuitionnetwork.tuitionnetwork.payments.infra.ports.bankmock.BackofficePaymentPage;
 import com.tuitionnetwork.tuitionnetwork.payments.infra.ports.bankmock.BackofficePaymentRequest;
 import com.tuitionnetwork.tuitionnetwork.payments.infra.ports.bankmock.BackofficePaymentResponse;
 import com.tuitionnetwork.tuitionnetwork.payments.infra.ports.bankmock.CaptureRequest;
-import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
@@ -49,13 +49,14 @@ public class BackofficePaymentAdapter implements BackofficePaymentPort {
 
     @Override
     public List<BackofficePaymentResponse> list(String customerId, String sourceId, String status) {
-        return bankMockRestClient.get()
+        BackofficePaymentPage page = bankMockRestClient.get()
                 .uri(uriBuilder -> uriBuilder.path("/api/v1/backoffice/payments")
                         .queryParamIfPresent("customer_id", Optional.ofNullable(customerId))
                         .queryParamIfPresent("source_id", Optional.ofNullable(sourceId))
                         .queryParamIfPresent("status", Optional.ofNullable(status))
                         .build())
                 .retrieve()
-                .body(new ParameterizedTypeReference<List<BackofficePaymentResponse>>() { });
+                .body(BackofficePaymentPage.class);
+        return page.items();
     }
 }

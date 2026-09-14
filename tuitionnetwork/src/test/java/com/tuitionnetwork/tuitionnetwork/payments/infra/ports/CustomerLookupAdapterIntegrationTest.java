@@ -47,7 +47,7 @@ class CustomerLookupAdapterIntegrationTest {
 
     @Test
     void unknownNationalIdIsNotFound() {
-        assertThatThrownBy(() -> adapter.findByNationalId("29999999999999"))
+        assertThatThrownBy(() -> adapter.findByNationalId("29511020204537"))
                 .isInstanceOf(BankMockApiException.class)
                 .satisfies(ex -> assertThat(((BankMockApiException) ex).code()).isEqualTo("CUSTOMER_NOT_FOUND"));
     }

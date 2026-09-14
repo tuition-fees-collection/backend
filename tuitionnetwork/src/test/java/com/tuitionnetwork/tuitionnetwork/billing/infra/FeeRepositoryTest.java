@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase;
+import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.util.List;
 import java.util.UUID;
@@ -21,18 +22,37 @@ import static org.junit.jupiter.api.Assertions.*;
 
  class FeeRepositoryTest {
 
-    @Autowired 
+    @Autowired
     private FeeRepository feeRepository;
+
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
+
     private UUID studentId;
     private UUID institutionId;
     private UUID otherStudentId;
 
-    @BeforeEach 
+    private void seedStudent(UUID studentId, String nationalIdHmac){
+        jdbcTemplate.update(
+            "INSERT INTO identity.student (id, national_id_hmac, full_name) VALUES (?, ?, ?)",
+            studentId, nationalIdHmac, "Test Student " + studentId);
+    }
+
+    private void seedInstitution(UUID institutionId){
+        jdbcTemplate.update(
+            "INSERT INTO billing.institution (id, name, type, status) VALUES (?, ?, ?, ?)",
+            institutionId, "Test Institution", "SCHOOL", "ACTIVE");
+    }
+
+    @BeforeEach
     void setUp(){
 
         studentId=UUID.randomUUID();
         institutionId=UUID.randomUUID();
         otherStudentId=UUID.randomUUID();
+        seedStudent(studentId, "hmac-" + studentId);
+        seedStudent(otherStudentId, "hmac-" + otherStudentId);
+        seedInstitution(institutionId);
          Fee fee1=new Fee(
             studentId,
             institutionId,

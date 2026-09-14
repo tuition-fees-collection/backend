@@ -17,6 +17,7 @@ import org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabas
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.annotation.DirtiesContext;
+import org.springframework.test.context.ActiveProfiles;
 
 import com.tuitionnetwork.tuitionnetwork.payment.domain.OutboxEvent;
 import com.tuitionnetwork.tuitionnetwork.payment.domain.Payment;
@@ -34,6 +35,7 @@ import com.tuitionnetwork.tuitionnetwork.payment.infra.persistence.repository.Pa
 import jakarta.persistence.EntityManager;
 
 
+@ActiveProfiles("test")
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)

@@ -19,11 +19,12 @@ import com.tuitionnetwork.tuitionnetwork.payment.services.Paymentvalidationexcep
 @RestControllerAdvice
 public class PaymentExceptionHandler {
     private static final Logger log = LoggerFactory.getLogger(PaymentExceptionHandler.class);
+    //unauthorized access
     @ExceptionHandler(AccessDeniedException.class)
     ResponseEntity<ApiError> forbidden(AccessDeniedException e) {
         return respond(HttpStatus.FORBIDDEN, "ACCESS_DENIED", "Access denied");
     }
-
+//url typo wrong
     @ExceptionHandler(NoResourceFoundException.class)
     ResponseEntity<ApiError> missingRoute(NoResourceFoundException e) {
         return respond(HttpStatus.NOT_FOUND, "NOT_FOUND", "Not found");
@@ -35,11 +36,12 @@ public class PaymentExceptionHandler {
                 e.getGuardianId(), e.getResourceId());
         return respond(HttpStatus.NOT_FOUND, "NOT_FOUND", "Payment not found");
     }
+    //business rule failed 
   @ExceptionHandler(Paymentvalidationexception.class)
 ResponseEntity<ApiError> validation(Paymentvalidationexception e) {
     return respond(HttpStatus.UNPROCESSABLE_CONTENT, e.getCode(), e.getMessage());
 }
-
+//chage state
     @ExceptionHandler(IllegalPaymentTransitionException.class)
     ResponseEntity<ApiError> illegalTransition(IllegalPaymentTransitionException e) {
         log.error("Illegal transition on payment {}: {} -> {}",
@@ -47,12 +49,14 @@ ResponseEntity<ApiError> validation(Paymentvalidationexception e) {
         return respond(HttpStatus.CONFLICT, "INVALID_PAYMENT_STATE",
                 "This payment cannot change state that way");
     }
+    //click ay in same time
     @ExceptionHandler(OptimisticLockingFailureException.class)
     ResponseEntity<ApiError> conflict(OptimisticLockingFailureException e) {
         log.warn("Concurrent modification: {}", e.getMessage());
         return respond(HttpStatus.CONFLICT, "CONCURRENT_MODIFICATION",
                 "This fee was being paid at the same moment. Please try again.");
     }
+    //ex as give payemnt idemocety key exist
     @ExceptionHandler(DataIntegrityViolationException.class)
     ResponseEntity<ApiError> integrity(DataIntegrityViolationException e) {
         log.warn("Constraint violation: {}", e.getMostSpecificCause().getMessage());
@@ -64,6 +68,7 @@ ResponseEntity<ApiError> validation(Paymentvalidationexception e) {
         return respond(HttpStatus.BAD_REQUEST, "MISSING_HEADER",
                 "Required header is missing: " + e.getHeaderName());
     }
+    //card holder not balnk
     @ExceptionHandler(MethodArgumentNotValidException.class)
     ResponseEntity<ApiError> invalidBody(MethodArgumentNotValidException e) {
         List<String> problems = e.getBindingResult().getFieldErrors().stream()
@@ -71,14 +76,17 @@ ResponseEntity<ApiError> validation(Paymentvalidationexception e) {
                 .toList();
         return respond(HttpStatus.BAD_REQUEST, "VALIDATION_ERROR", String.join("; ", problems));
     }
+    //pass as negative payemnt
     @ExceptionHandler(IllegalArgumentException.class)
     ResponseEntity<ApiError> illegalArgument(IllegalArgumentException e) {
         return respond(HttpStatus.BAD_REQUEST, "INVALID_REQUEST", e.getMessage());
     }
+    //as make reepit for payment is not made
     @ExceptionHandler(IllegalStateException.class)
     ResponseEntity<ApiError> illegalState(IllegalStateException e) {
         return respond(HttpStatus.CONFLICT, "INVALID_STATE", e.getMessage());
     }
+    //runtime
     @ExceptionHandler(Exception.class)
     ResponseEntity<ApiError> unexpected(Exception e) {
         log.error("Unhandled exception", e);

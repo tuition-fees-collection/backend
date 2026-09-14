@@ -17,25 +17,25 @@ import java.util.UUID;
 
 public interface FeeRepository extends JpaRepository<Fee,UUID> {
 
-
+    /*get all fees for a specific student */
     List<Fee> findByStudentId(UUID studentId);
 
-
+    /* get all fees for a student with specific status */
     List<Fee> findByStudentIdAndStatus(
         UUID studentId,
         FeeStatus status
     );
 
-
+    /*get all fees belonging to specific institution */
     List<Fee> findByInstitutionId(UUID institutionId);
 
-
+    /*get all fees for an institution with  specific status */
     List<Fee> findByInstitutionIdAndStatus(
         UUID institutionId,
         FeeStatus status
     );
 
-
+    /*get outstnding and partially fees for a student */
     @Query("""
             SELECT f
             FROM Fee f
@@ -50,7 +50,9 @@ public interface FeeRepository extends JpaRepository<Fee,UUID> {
         @Param("studentId") UUID studentId
     );
 
-
+    /*Get all payable fees for a list of students.
+     *
+     * Used when displaying a guardian's consolidated fees. */
 
     @Query("""
             SELECT f
@@ -66,7 +68,7 @@ public interface FeeRepository extends JpaRepository<Fee,UUID> {
                 @Param("studentIds") List<UUID> studentIds
             );
 
-
+            /*lock a fee while processing a payment */
             @Lock(LockModeType.PESSIMISTIC_WRITE)
                 @Query("""
                     SELECT f
@@ -78,9 +80,11 @@ public interface FeeRepository extends JpaRepository<Fee,UUID> {
                     );
 
 
-
+            /*get all fees for a batch of students (balance aggregation) */
+            /*gurdian has more than one child so use it insted of individual student queries */
             List<Fee> findByStudentIdIn(List<UUID> studentIds);
 
+            /*get all fees created from a specific CSV upload batch */
             List<Fee> findBySourceBatchId(UUID sourceBatchId);
             }
     

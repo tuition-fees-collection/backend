@@ -23,18 +23,24 @@ public class Payment {
  private static final int RESPONSE_MESSAGE_MAX = 255;
 @Id
 @GeneratedValue
+//this is payment id 
 private UUID id;
+//this prevent same payment request from being processed twice 
 @Column(name = "idempotency_key", unique = true, nullable = false)
 private String idempotencyKey;
+//this is id gateway
 @Column(name ="gateway_payment_id")
 private String gatewayPaymentId;
+//this is parent that owns payment
 @Column(name = "guardian_id", nullable = false)
-private UUID guardianId;
+private UUID guardianId; 
+//which employemake payment
 @Column(name = "processed_by", nullable = false)
-private UUID processedBy;
+private UUID processedBy; 
+//this is method of payment
 @Enumerated(EnumType.STRING)
 @Column(name = "method", nullable = false)
-private PaymentMethod method;
+private PaymentMethod method; 
 @Enumerated(EnumType.STRING)
 @Column(name = "payment_type", nullable = false)
 private PaymentType paymentType;
@@ -65,8 +71,10 @@ private Instant createdAt;
 private Instant updatedAt;
 @Column(name = "settled_at")
 private Instant settledAt;
+//prevent conflicting updates.
 @Version
-private Integer version;
+private Integer version; 
+//Hibernate needs a constructor so it can create a Payment object when reading from the database.
 protected Payment() {
     } 
 // method enforcing validation before constructing object
@@ -121,7 +129,7 @@ public static Payment create(String idempotencyKey,
     protected void onUpdate() {
         updatedAt = Instant.now();
     }
-       
+       //The payment was successfully completed.
   public void markSuccessful(String gatewayPaymentId,
                                BigDecimal capturedAmount,
                                String authCode,
@@ -135,6 +143,7 @@ public static Payment create(String idempotencyKey,
         transitionTo(PaymentStatus.SUCCESSFUL);
         this.settledAt = Instant.now();
     }
+    //We received all the money
  public void markSuccessfulCash() {
         this.capturedAmount = this.amount;
         transitionTo(PaymentStatus.SUCCESSFUL);
@@ -147,6 +156,7 @@ public static Payment create(String idempotencyKey,
         }
         transitionTo(PaymentStatus.FAILED);
     }
+    //We don't know exactly what happened, so needs to investigate.
      public void flagForReconciliation(String reason) {
         setResponseMessage(reason);
         transitionTo(PaymentStatus.RECON_REQUIRED);
@@ -215,7 +225,7 @@ public static Payment create(String idempotencyKey,
         return status.isSettled();
     }
  
-    //** EPP needs a credit card and a confirmed charge 
+    //EPP needs a credit card and a confirmed charge 
     public boolean isEppEligible() {
         return status.isSettled() && method != null && method.isEppEligible();
     }

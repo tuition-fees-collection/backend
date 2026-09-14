@@ -1,5 +1,6 @@
 package com.tuitionnetwork.tuitionnetwork.payment.services;
 import java.util.UUID;
+//the user is not allowed to access the payment/resource
 public class PaymentAccessDeniedException extends RuntimeException {
     private final UUID guardianId;
     private final UUID resourceId;

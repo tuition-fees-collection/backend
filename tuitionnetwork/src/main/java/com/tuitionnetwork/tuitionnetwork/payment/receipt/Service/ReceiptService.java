@@ -42,7 +42,7 @@ public class ReceiptService implements ReceiptPort {
                 if (raced.isPresent()) {
                     return toPortType(raced.get());
                 }
-                log.warn("Reference number {} collided, retrying ({}/{})",
+                log.warn("Reference number {} collided, retrying",
                         reference, attempt, MAX_ATTEMPTS);
             }
         }
@@ -51,9 +51,11 @@ public class ReceiptService implements ReceiptPort {
     }
     @Override
     @Transactional(readOnly = true)
+    //Find the receipt for a specific payment.
     public Optional<IssuedReceipt> findByPaymentId(UUID paymentId) {
         return receipts.findByPaymentId(paymentId).map(this::toPortType);
     }
+    //transaltor
     private IssuedReceipt toPortType(Receipt receipt) {
         return new IssuedReceipt(receipt.getId(), receipt.getPaymentId(), receipt.getReferenceNumber());
     }

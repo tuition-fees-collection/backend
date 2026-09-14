@@ -63,11 +63,6 @@ public class PaymentService implements CreatePaymentUseCase {
         if (command.method() == PaymentMethod.CASH) {
             identity.requireCashCollection();
         }
-        if (command.paymentType() == PaymentType.EPP
-                && command.method() != PaymentMethod.CREDIT_CARD) {
-            throw new Paymentvalidationexception("EPP_REQUIRES_CREDIT_CARD",
-                    "Installments are available only for credit-card payments");
-        }
 
         Optional<Payment> existing =
                 payments.findByGuardianIdAndIdempotencyKey(caller.guardianId(), command.idempotencyKey());

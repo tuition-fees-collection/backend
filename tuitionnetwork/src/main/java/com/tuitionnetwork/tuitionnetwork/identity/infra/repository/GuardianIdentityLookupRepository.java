@@ -17,13 +17,13 @@ public class GuardianIdentityLookupRepository {
         this.jdbcClient = jdbcClient;
     }
 
-    public java.util.Optional<GuardianIdentity>
-    findGuardianByNationalIdHmac(
+    public java.util.Optional<UUID>
+    findGuardianIdByNationalIdHmac(
             String nationalIdHmac
     ) {
 
         return jdbcClient.sql("""
-                SELECT id, full_name
+                SELECT id
                 FROM identity.guardian
                 WHERE national_id_hmac = :hmac
                 """)
@@ -31,14 +31,8 @@ public class GuardianIdentityLookupRepository {
                         "hmac",
                         nationalIdHmac
                 )
-                .query((rs, rowNum) -> new GuardianIdentity(
-                        rs.getObject("id", UUID.class),
-                        rs.getString("full_name")
-                ))
+                .query(UUID.class)
                 .optional();
-    }
-
-    public record GuardianIdentity(UUID id, String fullName) {
     }
 
     public Set<UUID> findStudentIdsByGuardianId(

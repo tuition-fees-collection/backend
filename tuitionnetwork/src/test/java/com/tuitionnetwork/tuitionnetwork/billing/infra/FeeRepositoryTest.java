@@ -10,6 +10,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.test.context.ActiveProfiles;
 
 import java.util.List;
 import java.util.UUID;
@@ -17,10 +18,10 @@ import java.math.BigDecimal;
 import static org.junit.jupiter.api.Assertions.*;
 
 
+@ActiveProfiles("test")
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
-
- class FeeRepositoryTest {
+class FeeRepositoryTest {
 
     @Autowired
     private FeeRepository feeRepository;

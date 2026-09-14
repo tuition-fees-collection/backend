@@ -2,7 +2,7 @@ services:
   postgres:
     image: postgres:16
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-tuition}
+      POSTGRES_DB: tuition
       POSTGRES_USER: tuition
       POSTGRES_PASSWORD: tuition
     ports:
@@ -10,7 +10,7 @@ services:
     volumes:
       - tuitionnetwork-postgres-data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U tuition -d ${POSTGRES_DB:-tuition}"]
+      test: ["CMD-SHELL", "pg_isready -U tuition -d tuition"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -35,19 +35,11 @@ services:
   app:
     build: .
     environment:
-<<<<<<< HEAD
       JWT_SECRET_BASE64: ${JWT_SECRET_BASE64}
       NATIONAL_ID_HMAC_KEY_BASE64: ${NATIONAL_ID_HMAC_KEY_BASE64}
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/tuition
-=======
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-tuition}
->>>>>>> origin/feature/integration-check-dev-d
       SPRING_DATASOURCE_USERNAME: tuition
       SPRING_DATASOURCE_PASSWORD: tuition
-      BANKMOCK_BASE_URL: http://host.docker.internal:8000
-      NATIONAL_ID_HMAC_KEY_BASE64: ${NATIONAL_ID_HMAC_KEY_BASE64}
-      NATIONAL_ID_ENCRYPTION_KEY_BASE64: ${NATIONAL_ID_ENCRYPTION_KEY_BASE64}
-      JWT_SECRET_BASE64: ${JWT_SECRET_BASE64}
     ports:
       - "127.0.0.1:${APP_PORT:-8080}:8080"
     depends_on:
@@ -61,4 +53,4 @@ volumes:
 configs:
   pgadmin-servers:
     content: |
-      {"Servers":{"1":{"Name":"Tuitionnetwork (local)","Group":"Servers","Host":"postgres","Port":5432,"MaintenanceDB":"${POSTGRES_DB:-tuition}","Username":"tuition","SSLMode":"prefer"}}}
+      {"Servers":{"1":{"Name":"Tuitionnetwork (local)","Group":"Servers","Host":"postgres","Port":5432,"MaintenanceDB":"tuition","Username":"tuition","SSLMode":"prefer"}}}

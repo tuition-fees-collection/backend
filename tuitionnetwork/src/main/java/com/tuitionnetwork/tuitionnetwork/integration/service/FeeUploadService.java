@@ -99,6 +99,15 @@ public class FeeUploadService {
                 List.copyOf(outcome.errors()));
     }
 
+    public UploadBatch getBatch(UUID batchId) {
+        return uploadBatchRepository.findById(batchId)
+                .orElseThrow(() -> new UploadBatchNotFoundException(batchId));
+    }
+
+    public List<UploadBatch> findByInstitution(UUID institutionId) {
+        return uploadBatchRepository.findByInstitutionIdOrderByUploadedAtDesc(institutionId);
+    }
+
     private void rejectExistingUpload(UUID institutionId, String externalReference, String checksum) {
         if (externalReference != null) {
             uploadBatchRepository

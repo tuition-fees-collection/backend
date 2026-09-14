@@ -1,5 +1,6 @@
 package com.tuitionnetwork.tuitionnetwork.integration.web;
 
+import com.tuitionnetwork.tuitionnetwork.identity.service.IdentityAccessService;
 import com.tuitionnetwork.tuitionnetwork.integration.domain.UploadBatch;
 import com.tuitionnetwork.tuitionnetwork.integration.service.DuplicateUploadException;
 import com.tuitionnetwork.tuitionnetwork.integration.service.FeeUploadService;
@@ -14,7 +15,8 @@ import static org.mockito.Mockito.mock;
 
 class FeeUploadControllerTest {
 
-    private final FeeUploadController controller = new FeeUploadController(mock(FeeUploadService.class));
+    private final FeeUploadController controller =
+            new FeeUploadController(mock(FeeUploadService.class), mock(IdentityAccessService.class));
 
     @Test
     void duplicateSubmissionReturnsConflictAndExistingBatchDetails() {

@@ -38,7 +38,6 @@ jobs:
       - run: sh mvnw -B clean verify
         env:
           POSTGRES_PORT: 5433
-          DB_PORT: 5433
           POSTGRES_DB: tuition
           JWT_SECRET_BASE64: MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5MDE=
           NATIONAL_ID_HMAC_KEY_BASE64: YWJjZGVmZ2hpamtsbW5vcHFyc3R1dnd4eXpBQkNERUY=

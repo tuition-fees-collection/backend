@@ -86,6 +86,14 @@ public interface FeeRepository extends JpaRepository<Fee,UUID> {
 
             /*get all fees created from a specific CSV upload batch */
             List<Fee> findBySourceBatchId(UUID sourceBatchId);
-            }
+
+            /* get a student's fees belonging to a specific institution */
+            List<Fee> findByStudentIdAndInstitutionId(
+            UUID studentId,
+            UUID institutionId
+            );
+
+
+}
     
         

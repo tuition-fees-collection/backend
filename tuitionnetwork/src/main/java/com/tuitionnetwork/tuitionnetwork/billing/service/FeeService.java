@@ -76,6 +76,23 @@ public class FeeService{
         return fee.getOutstandingAmount();
     }
 
+    /* get a student's fee record for a specific institution */
+    public List<Fee> getFeesForStudentAndInstitution(UUID studentId,UUID institutionId) {
+        List<Fee> fees=
+                feeRepository.findByStudentIdAndInstitutionId(
+                        studentId,
+                        institutionId
+                );
+
+                if(fees.isEmpty()) {
+                      throw new FeeNotFoundException(
+                         "Student fee record not found"
+                        );
+                }
+                return fees;
+   
+}
+
     /*validate payment amount before processing */
     public void validatePaymentAmount(UUID feeId,BigDecimal paymentAmount){
         Fee fee=getPayableFee(feeId);

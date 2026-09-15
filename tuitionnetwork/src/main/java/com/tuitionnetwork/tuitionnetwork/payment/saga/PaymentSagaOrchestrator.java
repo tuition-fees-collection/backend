@@ -12,6 +12,7 @@ import com.tuitionnetwork.tuitionnetwork.payment.domain.PaymentSagaStep;
 import com.tuitionnetwork.tuitionnetwork.payment.domain.PaymentSagaStepType;
 import com.tuitionnetwork.tuitionnetwork.payment.domain.PaymentStatus;
 import com.tuitionnetwork.tuitionnetwork.payment.port.in.ExecutePaymentSagaUseCase;
+import com.tuitionnetwork.tuitionnetwork.payment.port.portout.Backofficegatewayport;
 import com.tuitionnetwork.tuitionnetwork.payment.port.portout.CardGatewayPort;
 import com.tuitionnetwork.tuitionnetwork.payment.port.portout.PaymentRepository;
 import com.tuitionnetwork.tuitionnetwork.payment.port.portout.ReceiptPort;
@@ -27,6 +28,7 @@ public class PaymentSagaOrchestrator implements ExecutePaymentSagaUseCase {
     private final PaymentSaga saga;
     private final ReceiptPort receipts;
     private final CardGatewayPort gateway;
+    private final Backofficegatewayport backoffice;
     private final IdentityAccessService identity;
     private final Map<PaymentMethod, PaymentMethodHandler> handlers = new EnumMap<>(PaymentMethod.class);
     public PaymentSagaOrchestrator(PaymentRepository payments,
@@ -34,6 +36,7 @@ public class PaymentSagaOrchestrator implements ExecutePaymentSagaUseCase {
                                    PaymentSaga saga,
                                    ReceiptPort receipts,
                                    CardGatewayPort gateway,
+                                   Backofficegatewayport backoffice,
                                    IdentityAccessService identity,
                                    List<PaymentMethodHandler> methodHandlers) {
         this.payments = payments;
@@ -41,6 +44,7 @@ public class PaymentSagaOrchestrator implements ExecutePaymentSagaUseCase {
         this.saga = saga;
         this.receipts = receipts;
         this.gateway = gateway;
+        this.backoffice = backoffice;
         this.identity = identity;
         methodHandlers.forEach(handler -> this.handlers.put(handler.handles(), handler));
                                    }
@@ -51,12 +55,21 @@ public class PaymentSagaOrchestrator implements ExecutePaymentSagaUseCase {
             identity.requireCashCollection();
         }
         payment = settlement.markPending(payment);
-        boolean cardSupplied = command.cardNumber() != null && !command.cardNumber().isBlank();
-        if (payment.getMethod() == PaymentMethod.CASH && cardSupplied) {
-            throw new IllegalStateException("A cash payment is taken through /pay-cash, not /pay");
+        if (payment.getMethod() == PaymentMethod.CASH
+                && (command.hasCard() || command.hasSource())) {
+            throw new IllegalStateException("A cash payment is taken through /pay-cash");
         }
-        if (payment.getMethod() != PaymentMethod.CASH && !cardSupplied) {
+        if (payment.getMethod().usesHeldSource() && !command.hasSource()) {
+            throw new IllegalStateException("This payment needs a source - use /pay-source");
+        }
+        if (payment.getMethod().requiresGateway()
+                && !payment.getMethod().usesHeldSource()
+                && !command.hasCard()) {
             throw new IllegalStateException("A card payment needs card details - use /pay");
+        }
+        if (command.hasSource() && !sourceBelongsToCustomer(command)) {
+            throw new IllegalStateException(
+                    "That payment source does not belong to this customer");
         }
 
         PaymentMethodHandler handler = handlers.get(payment.getMethod());
@@ -116,6 +129,13 @@ public class PaymentSagaOrchestrator implements ExecutePaymentSagaUseCase {
 
         throw new IllegalStateException("Unhandled gateway outcome: " + result.outcome());
     }
+    private boolean sourceBelongsToCustomer(ExecutePaymentCommand command) {
+        return backoffice.lookupCustomer(command.nationalId())
+                .filter( Backofficegatewayport.CustomerProfile::isActive)
+                .map(profile -> profile.holds(command.sourceId()))
+                .orElse(false);
+    }
+
     private Payment load(UUID paymentId) {
         Payment payment = payments.findById(paymentId)
                 .orElseThrow(() -> new PaymentAccessDeniedException(null, paymentId));

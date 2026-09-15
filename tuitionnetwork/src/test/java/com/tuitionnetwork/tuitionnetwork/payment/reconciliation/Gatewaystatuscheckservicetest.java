@@ -24,6 +24,7 @@ import org.mockito.quality.Strictness;
 import com.tuitionnetwork.tuitionnetwork.payment.domain.Payment;
 import com.tuitionnetwork.tuitionnetwork.payment.domain.PaymentMethod;
 import com.tuitionnetwork.tuitionnetwork.payment.domain.PaymentType;
+import com.tuitionnetwork.tuitionnetwork.payment.port.portout.Backofficegatewayport;
 import com.tuitionnetwork.tuitionnetwork.payment.port.portout.CardGatewayPort;
 import com.tuitionnetwork.tuitionnetwork.payment.port.portout.PaymentRepository;
 import com.tuitionnetwork.tuitionnetwork.payment.saga.PaymentSettlement;
@@ -37,6 +38,7 @@ class GatewayStatusCheckServiceTest {
 
     @Mock private PaymentRepository payments;
     @Mock private CardGatewayPort gateway;
+    @Mock private Backofficegatewayport backoffice;
     @Mock private PaymentSettlement settlement;
     @Mock private GatewayCheckStore store;
 
@@ -44,7 +46,7 @@ class GatewayStatusCheckServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new GatewayStatusCheckService(payments, gateway, settlement, store, 5, 24);
+        service = new GatewayStatusCheckService(payments, gateway, backoffice, settlement, store, 5, 24);
         when(store.startRun()).thenReturn(RUN_ID);
         when(store.itemsForPayment(any())).thenReturn(List.of());
     }

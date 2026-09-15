@@ -77,7 +77,7 @@ class PaymentCommandsTest {
         @Test
         @DisplayName("ExecutePaymentCommand.toString hides the PAN and the CVV")
         void executeCommandIsRedacted() {
-            var command = new ExecutePaymentSagaUseCase.ExecutePaymentCommand(
+            var command = ExecutePaymentSagaUseCase.ExecutePaymentCommand.withCard(
                     UUID.randomUUID(), "4111111111111111", "MOHAMED HAMOUDA", 12, 2030, "123");
 
             String printed = command.toString();

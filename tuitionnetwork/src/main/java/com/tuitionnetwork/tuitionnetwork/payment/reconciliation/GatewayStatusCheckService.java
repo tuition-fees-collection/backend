@@ -10,6 +10,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import com.tuitionnetwork.tuitionnetwork.payment.domain.Payment;
 import com.tuitionnetwork.tuitionnetwork.payment.domain.PaymentStatus;
+import com.tuitionnetwork.tuitionnetwork.payment.port.portout.Backofficegatewayport;
 import com.tuitionnetwork.tuitionnetwork.payment.port.portout.CardGatewayPort;
 import com.tuitionnetwork.tuitionnetwork.payment.port.portout.PaymentRepository;
 import com.tuitionnetwork.tuitionnetwork.payment.saga.PaymentSettlement;
@@ -20,6 +21,7 @@ public class GatewayStatusCheckService {
 
     private final PaymentRepository payments;
     private final CardGatewayPort gateway;
+    private final Backofficegatewayport backoffice;
     private final PaymentSettlement settlement;
     private final GatewayCheckStore store;
     private final Duration staleAfter;
@@ -28,12 +30,14 @@ public class GatewayStatusCheckService {
     public GatewayStatusCheckService(
             PaymentRepository payments,
             CardGatewayPort gateway,
+            Backofficegatewayport backoffice,
             PaymentSettlement settlement,
             GatewayCheckStore store,
             @Value("${payments.reconciliation.stale-after-minutes:5}") int staleAfterMinutes,
             @Value("${payments.reconciliation.give-up-after-hours:24}") int giveUpAfterHours) {
         this.payments = payments;
         this.gateway = gateway;
+        this.backoffice = backoffice;
         this.settlement = settlement;
         this.store = store;
         this.staleAfter = Duration.ofMinutes(staleAfterMinutes);
@@ -104,8 +108,9 @@ public class GatewayStatusCheckService {
             store.recordItem(runId, payment.getId(), null, GatewayCheckRecords.Outcome.MISMATCHED);
             return false;
         }
-
-        CardGatewayPort.Result actual = gateway.getStatus(payment.getGatewayPaymentId());
+        CardGatewayPort.Result actual = payment.getMethod().usesHeldSource()
+                ? backoffice.getSourcePaymentStatus(payment.getGatewayPaymentId())
+                : gateway.getStatus(payment.getGatewayPaymentId());
 
         switch (actual.outcome()) {
 

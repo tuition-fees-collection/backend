@@ -55,13 +55,13 @@ class BillingFeeProvisioningAdapterPersistenceTest {
         BillingFeeProvisioningAdapter adapter = adapterResolving(fixture.studentId());
 
         adapter.provisionFee(command(fixture.institutionId(), fixture.batchId(), "TUITION", "5000"));
-        adapter.provisionFee(command(fixture.institutionId(), fixture.batchId(), "BUS", "900"));
+        adapter.provisionFee(command(fixture.institutionId(), fixture.batchId(), "TRANSPORTATION", "900"));
         feeRepository.flush();
 
         assertThat(feeRepository.findBySourceBatchId(fixture.batchId()))
                 .hasSize(2)
                 .extracting(Fee::getFeeType)
-                .containsExactlyInAnyOrder(FeeType.TUITION, FeeType.BUS);
+                .containsExactlyInAnyOrder(FeeType.TUITION, FeeType.TRANSPORTATION);
     }
 
     private BillingFeeProvisioningAdapter adapterResolving(UUID studentId) {

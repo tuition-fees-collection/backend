@@ -1,8 +1,6 @@
 package com.tuitionnetwork.tuitionnetwork.payment.api;
-
 import java.util.List;
 import java.util.UUID;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -11,10 +9,10 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-
 import com.tuitionnetwork.tuitionnetwork.payment.port.in.CreatePaymentUseCase;
 import com.tuitionnetwork.tuitionnetwork.payment.port.in.CreatePaymentUseCase.CreatePaymentCommand;
 import com.tuitionnetwork.tuitionnetwork.payment.port.in.CreatePaymentUseCase.FeeLine;
@@ -24,6 +22,7 @@ import com.tuitionnetwork.tuitionnetwork.payment.port.in.ExecutePaymentSagaUseCa
 import com.tuitionnetwork.tuitionnetwork.payment.port.in.ExecutePaymentSagaUseCase.ExecutePaymentCommand;
 import com.tuitionnetwork.tuitionnetwork.payment.port.in.ExecutePaymentSagaUseCase.PaymentResultView;
 import com.tuitionnetwork.tuitionnetwork.payment.port.in.GetPaymentUseCase;
+import com.tuitionnetwork.tuitionnetwork.payment.port.portout.Backofficegatewayport;
 
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.validation.Valid;
@@ -34,21 +33,27 @@ import jakarta.validation.constraints.Size;
 
 @RestController
 @RequestMapping("/api/v1/payment-orders")
+//Tells Swagger that every route in this controller requires a Bearer JWT token.
 @SecurityRequirement(name = "bearerAuth")
 public class PaymentController {
 
     private static final Logger log = LoggerFactory.getLogger(PaymentController.class);
-
+//Port for creating new payment orders
     private final CreatePaymentUseCase createPayment;
+    //Port for processing payments
     private final ExecutePaymentSagaUseCase executePayment;
+    //Port for fetching payment details, receipts, and transaction history.
     private final GetPaymentUseCase getPayment;
+    private final Backofficegatewayport backoffice;
 
     public PaymentController(CreatePaymentUseCase createPayment,
                              ExecutePaymentSagaUseCase executePayment,
-                             GetPaymentUseCase getPayment) {
+                             GetPaymentUseCase getPayment,
+                             Backofficegatewayport backoffice) {
         this.createPayment = createPayment;
         this.executePayment = executePayment;
         this.getPayment = getPayment;
+        this.backoffice = backoffice;
     }
 
     @PostMapping
@@ -79,20 +84,32 @@ public class PaymentController {
             @PathVariable UUID paymentId,
             @Valid @RequestBody ChargeRequest request) {
         log.info("Charging payment {}", paymentId);
-        return executePayment.execute(new ExecutePaymentCommand(
-                paymentId,
-                request.cardNumber(),
-                request.cardHolderName(),
-                request.expiryMonth(),
-                request.expiryYear(),
-                request.cvv()));
+        return executePayment.execute(ExecutePaymentCommand.withCard(
+                paymentId, request.cardNumber(), request.cardHolderName(),
+                request.expiryMonth(), request.expiryYear(), request.cvv()));
     }
 
     @PostMapping("/{paymentId}/pay-cash")
     public PaymentResultView payCash(@PathVariable UUID paymentId) {
         log.info("Taking cash payment {}", paymentId);
-        return executePayment.execute(new ExecutePaymentCommand(
-                paymentId, null, null, 0, 0, null));
+        return executePayment.execute(ExecutePaymentCommand.forCash(paymentId));
+    }
+    @PostMapping("/{paymentId}/pay-source")
+    public PaymentResultView paySource(
+            @PathVariable UUID paymentId,
+            @Valid @RequestBody SourceChargeRequest request) {
+
+        log.info("Charging payment {} from a held source", paymentId);
+
+        return executePayment.execute(ExecutePaymentCommand.withSource(
+                paymentId, request.sourceId(), request.nationalId()));
+    }
+    @GetMapping("/customer-lookup")
+    public CustomerLookupResponse lookupCustomer(@RequestParam String nationalId) {
+        return backoffice.lookupCustomer(nationalId)
+                .map(CustomerLookupResponse::from)
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "No bank customer found for that national ID"));
     }
 
     @PostMapping("/{paymentId}/3ds")

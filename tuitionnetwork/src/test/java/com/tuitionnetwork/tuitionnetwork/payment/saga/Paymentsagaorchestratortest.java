@@ -36,6 +36,7 @@ import com.tuitionnetwork.tuitionnetwork.payment.domain.PaymentType;
 import com.tuitionnetwork.tuitionnetwork.payment.port.in.ExecutePaymentSagaUseCase.Confirm3dsCommand;
 import com.tuitionnetwork.tuitionnetwork.payment.port.in.ExecutePaymentSagaUseCase.ExecutePaymentCommand;
 import com.tuitionnetwork.tuitionnetwork.payment.port.in.ExecutePaymentSagaUseCase.PaymentResultView;
+import com.tuitionnetwork.tuitionnetwork.payment.port.portout.Backofficegatewayport;
 import com.tuitionnetwork.tuitionnetwork.payment.port.portout.CardGatewayPort;
 import com.tuitionnetwork.tuitionnetwork.payment.port.portout.PaymentRepository;
 import com.tuitionnetwork.tuitionnetwork.payment.port.portout.ReceiptPort;
@@ -57,6 +58,7 @@ class PaymentSagaOrchestratorTest {
     @Mock private PaymentSaga saga;
     @Mock private ReceiptPort receipts;
     @Mock private CardGatewayPort gateway;
+    @Mock private Backofficegatewayport backoffice;
     @Mock private IdentityAccessService identity;
 
     private PaymentSagaOrchestrator orchestrator;
@@ -70,7 +72,7 @@ class PaymentSagaOrchestratorTest {
                 new DebitCardHandler(gateway));
 
         orchestrator = new PaymentSagaOrchestrator(
-                payments, settlement, saga, receipts, gateway, identity, handlers);
+                payments, settlement, saga, receipts, gateway, backoffice, identity, handlers);
 
         payment = persisted(PaymentMethod.CREDIT_CARD);
         when(payments.findById(payment.getId())).thenReturn(Optional.of(payment));
@@ -245,7 +247,7 @@ class PaymentSagaOrchestratorTest {
             });
 
             PaymentResultView view = orchestrator.execute(
-                    new ExecutePaymentCommand(payment.getId(), null, null, 0, 0, null));
+                    ExecutePaymentCommand.forCash(payment.getId()));
 
             assertEquals(PaymentStatus.SUCCESSFUL, view.status());
             verify(gateway, never()).charge(any(), anyString());
@@ -272,7 +274,7 @@ class PaymentSagaOrchestratorTest {
         void cardWithoutCard() {
             IllegalStateException thrown = assertThrows(IllegalStateException.class,
                     () -> orchestrator.execute(
-                            new ExecutePaymentCommand(payment.getId(), null, null, 0, 0, null)));
+                            ExecutePaymentCommand.forCash(payment.getId())));
             assertTrue(thrown.getMessage().contains("card details"));
         }
     }
@@ -287,7 +289,7 @@ class PaymentSagaOrchestratorTest {
             org.mockito.Mockito.doThrow(new org.springframework.security.access.AccessDeniedException("Access denied"))
                     .when(identity).authorizePaymentAccess(GUARDIAN);
             assertThrows(PaymentAccessDeniedException.class,
-                    () -> orchestrator.execute(new ExecutePaymentCommand(
+                    () -> orchestrator.execute(ExecutePaymentCommand.withCard(
                             payment.getId(),
                             "4111111111111111", "Mohamed", 12, 2030, "123")));
 
@@ -301,7 +303,7 @@ class PaymentSagaOrchestratorTest {
             when(payments.findById(missing)).thenReturn(Optional.empty());
 
             assertThrows(PaymentAccessDeniedException.class,
-                    () -> orchestrator.execute(new ExecutePaymentCommand(
+                    () -> orchestrator.execute(ExecutePaymentCommand.withCard(
                             missing, "4111111111111111", "Mohamed", 12, 2030, "123")));
         }
     }
@@ -319,7 +321,7 @@ class PaymentSagaOrchestratorTest {
     }
 
     private ExecutePaymentCommand chargeCommand() {
-        return new ExecutePaymentCommand(payment.getId(),
+        return ExecutePaymentCommand.withCard(payment.getId(),
                 "4111111111111111", "Mohamed Hamouda", 12, 2030, "123");
     }
 

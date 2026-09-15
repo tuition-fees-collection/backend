@@ -1,4 +1,5 @@
 package com.tuitionnetwork.tuitionnetwork.payment.api;
+
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -11,6 +12,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import org.junit.jupiter.api.DisplayName;
@@ -24,6 +26,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+
 import com.tuitionnetwork.tuitionnetwork.payment.domain.PaymentMethod;
 import com.tuitionnetwork.tuitionnetwork.payment.domain.PaymentStatus;
 import com.tuitionnetwork.tuitionnetwork.payment.domain.PaymentType;
@@ -33,8 +36,10 @@ import com.tuitionnetwork.tuitionnetwork.payment.port.in.ExecutePaymentSagaUseCa
 import com.tuitionnetwork.tuitionnetwork.payment.port.in.ExecutePaymentSagaUseCase.PaymentResultView;
 import com.tuitionnetwork.tuitionnetwork.payment.port.in.GetPaymentUseCase;
 import com.tuitionnetwork.tuitionnetwork.payment.port.in.GetPaymentUseCase.PaymentView;
+import com.tuitionnetwork.tuitionnetwork.payment.port.portout.Backofficegatewayport;
 import com.tuitionnetwork.tuitionnetwork.payment.services.PaymentAccessDeniedException;
 import com.tuitionnetwork.tuitionnetwork.payment.services.Paymentvalidationexception;
+
 @ActiveProfiles("test")
 @WebMvcTest(controllers = PaymentController.class)
 @AutoConfigureMockMvc(addFilters = false)
@@ -71,6 +76,8 @@ class PaymentControllerTest {
     @MockitoBean private CreatePaymentUseCase createPayment;
     @MockitoBean private ExecutePaymentSagaUseCase executePayment;
     @MockitoBean private GetPaymentUseCase getPayment;
+    @MockitoBean private Backofficegatewayport backoffice;
+
     @Nested
     @DisplayName("creating an order")
     class Create {
@@ -99,6 +106,7 @@ class PaymentControllerTest {
                             .content(ORDER_BODY))
                     .andExpect(status().isOk());
         }
+
         @Test
         @DisplayName("refuses a request with no Idempotency-Key")
         void idempotencyKeyIsRequired() throws Exception {
@@ -122,6 +130,7 @@ class PaymentControllerTest {
                             .content(ORDER_BODY))
                     .andExpect(status().isCreated());
         }
+
         @Test
         @DisplayName("rejects an empty fee list before the service is called")
         void emptyFeeLines() throws Exception {
@@ -195,6 +204,7 @@ class PaymentControllerTest {
 
             verify(executePayment, never()).execute(any());
         }
+
         @Test
         @DisplayName("a cash payment needs no body")
         void cashTakesNoBody() throws Exception {
@@ -206,8 +216,41 @@ class PaymentControllerTest {
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.status").value("SUCCESSFUL"));
         }
+
+        @Test
+        @DisplayName("charges payment from a held bank source")
+        void paySource() throws Exception {
+            when(executePayment.execute(any())).thenReturn(new PaymentResultView(
+                    PAYMENT_ID, PaymentStatus.SUCCESSFUL, false, null, "RCP-2026-SOURCE",
+                    "Payment successful"));
+
+            mvc.perform(post("/api/v1/payment-orders/" + PAYMENT_ID + "/pay-source")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("""
+                                    {
+                                      "sourceId": "SRC-9999",
+                                      "nationalId": "29901011234567"
+                                    }
+                                    """))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.status").value("SUCCESSFUL"));
+        }
     }
 
+    @Nested
+@DisplayName("customer lookup")
+class CustomerLookup {
+
+    @Test
+    @DisplayName("returns 400 when bank customer is not found")
+    void customerNotFoundThrowsException() throws Exception {
+        when(backoffice.lookupCustomer("29901011234567")).thenReturn(Optional.empty());
+
+        mvc.perform(get("/api/v1/payment-orders/customer-lookup")
+                        .param("nationalId", "29901011234567"))
+                .andExpect(status().isBadRequest());
+    }
+}
     @Nested
     @DisplayName("errors")
     class Errors {
@@ -254,12 +297,14 @@ class PaymentControllerTest {
                     .andExpect(jsonPath("$.maskedCardNumber").value("411111******1111"));
         }
     }
+
     private static PaymentOrderView orderView(boolean replay) {
         Instant now = Instant.now();
         return new PaymentOrderView(PAYMENT_ID, PaymentStatus.CREATED, new BigDecimal("500.00"),
                 "EGP", PaymentMethod.CREDIT_CARD, PaymentType.PARTIAL, now,
                 now.plusSeconds(900), replay);
     }
+
     private static PaymentView paymentView() {
         return new PaymentView(PAYMENT_ID, PaymentStatus.SUCCESSFUL, new BigDecimal("500.00"),
                 "EGP", PaymentMethod.CREDIT_CARD, PaymentType.PARTIAL,

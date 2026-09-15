@@ -83,7 +83,8 @@ public class DevDCardGatewayBridge implements CardGatewayPort {
     private Result mapFailure(BankMockApiException exception, String knownPaymentId) {
         Map<String, Object> details = exception.details() == null ? Map.of() : exception.details();
         String paymentId = detail(details, "payment_id", knownPaymentId);
-        if ("HTTP_404".equals(exception.code())) {
+         if ("PAYMENT_NOT_FOUND".equals(exception.code())
+                || "HTTP_404".equals(exception.code())) {
             return Result.notFound(paymentId);
         }
         if ("ISSUER_UNAVAILABLE".equals(exception.code())

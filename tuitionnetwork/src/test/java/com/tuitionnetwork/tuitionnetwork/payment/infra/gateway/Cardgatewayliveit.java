@@ -17,11 +17,21 @@ import org.junit.jupiter.api.Test;
 import com.tuitionnetwork.tuitionnetwork.payment.port.portout.CardGatewayPort.ChargeCommand;
 import com.tuitionnetwork.tuitionnetwork.payment.port.portout.CardGatewayPort.Outcome;
 import com.tuitionnetwork.tuitionnetwork.payment.port.portout.CardGatewayPort.Result;
-class WitCardGatewayAdapterTest {
+import com.tuitionnetwork.tuitionnetwork.payment.port.portout.CardGatewayPort;
+import com.tuitionnetwork.tuitionnetwork.payments.infra.ports.CardGatewayAdapter;
+import com.tuitionnetwork.tuitionnetwork.payments.infra.ports.bankmock.BankMockApiException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.http.HttpStatusCode;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
+import org.springframework.web.client.RestClient;
+import java.time.Duration;
+import java.util.Map;
+class CardGatewayLiveIT {
     private static final String BASE_URL = "http://127.0.0.1:8000";
     private static final String API_KEY = "wit-intern-2026";
-    private final WitCardGatewayAdapter adapter =
-            new WitCardGatewayAdapter(BASE_URL, API_KEY, 5000, 15000);
+    private final CardGatewayPort adapter = new DevDCardGatewayBridge(
+            new CardGatewayAdapter(bankMockClient(BASE_URL, 5000, 15000)));
     @BeforeAll
     static void requireRunningMock() {
         try (Socket socket = new Socket()) {
@@ -161,8 +171,8 @@ class WitCardGatewayAdapterTest {
         @Test
         @DisplayName("an unreachable provider is UNKNOWN, not an exception the service must catch")
         void unreachableProvider() {
-            WitCardGatewayAdapter offline =
-                    new WitCardGatewayAdapter("http://127.0.0.1:9", API_KEY, 300, 300);
+            CardGatewayPort offline = new DevDCardGatewayBridge(
+                    new CardGatewayAdapter(bankMockClient("http://127.0.0.1:9", 300, 300)));
 
             Result result = offline.charge(new ChargeCommand(
                     UUID.randomUUID(), "4111111111111111", "Mohamed Hamouda", 12, 2030, "123",
@@ -203,5 +213,39 @@ class WitCardGatewayAdapterTest {
             assertNotNull(second.gatewayPaymentId());
             assertFalse(first.gatewayPaymentId().equals(second.gatewayPaymentId()));
         }
+    }
+    private static RestClient bankMockClient(String baseUrl, int connectMs, int readMs) {
+        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(Duration.ofMillis(connectMs));
+        factory.setReadTimeout(Duration.ofMillis(readMs));
+
+        ObjectMapper objectMapper = new ObjectMapper();
+        return RestClient.builder()
+                .baseUrl(baseUrl)
+                .requestFactory(factory)
+                .defaultHeader("X-API-Key", API_KEY)
+                .defaultStatusHandler(HttpStatusCode::isError, (request, response) -> {
+                    JsonNode body;
+                    try {
+                        body = objectMapper.readTree(response.getBody());
+                    } catch (IOException e) {
+                        throw new BankMockApiException(
+                                "UNKNOWN", "Unreadable error response from bank mock", null);
+                    }
+                    JsonNode error = body.path("error");
+                    if (!error.isMissingNode() && !error.isNull()) {
+                        Map<String, Object> details = objectMapper.convertValue(
+                                error.path("details"),
+                                new com.fasterxml.jackson.core.type.TypeReference<>() { });
+                        throw new BankMockApiException(
+                                error.path("code").asText("UNKNOWN"),
+                                error.path("message").asText("Bank mock request failed"),
+                                details);
+                    }
+                    throw new BankMockApiException(
+                            "HTTP_" + response.getStatusCode().value(),
+                            "Bank mock request failed", Map.of());
+                })
+                .build();
     }
 }

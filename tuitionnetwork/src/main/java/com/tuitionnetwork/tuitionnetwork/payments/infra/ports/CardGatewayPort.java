@@ -9,7 +9,6 @@ public interface CardGatewayPort {
 
     CardPaymentResponse charge(CardPaymentRequest request, String idempotencyKey);
 
-
     CardPaymentResponse capture(String gatewayPaymentId, BigDecimal amount);
 
     CardPaymentResponse confirm3ds(String gatewayPaymentId, String otp);

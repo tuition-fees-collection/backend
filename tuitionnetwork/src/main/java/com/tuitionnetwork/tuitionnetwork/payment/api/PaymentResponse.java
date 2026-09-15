@@ -31,6 +31,7 @@ public record PaymentResponse(
             String collectionPeriod,
             BigDecimal amountApplied) {
     }
+    //orde creation
     public static PaymentResponse from(PaymentOrderView view) {
         return new PaymentResponse(
                 view.paymentId(),
@@ -47,6 +48,7 @@ public record PaymentResponse(
                 null,
                 List.of());
     }
+    //view
 
     public static PaymentResponse from(PaymentView view) {
         return new PaymentResponse(
@@ -67,6 +69,7 @@ public record PaymentResponse(
                                 a.feeId(), a.feeType(), a.collectionPeriod(), a.amountApplied()))
                         .toList());
     }
+    //history list
     public static PaymentResponse from(PaymentSummary summary) {
         return new PaymentResponse(
                 summary.paymentId(),

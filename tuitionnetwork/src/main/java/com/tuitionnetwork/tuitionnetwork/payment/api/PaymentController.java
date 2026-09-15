@@ -1,8 +1,6 @@
 package com.tuitionnetwork.tuitionnetwork.payment.api;
-
 import java.util.List;
 import java.util.UUID;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -14,7 +12,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-
 import com.tuitionnetwork.tuitionnetwork.payment.port.in.CreatePaymentUseCase;
 import com.tuitionnetwork.tuitionnetwork.payment.port.in.CreatePaymentUseCase.CreatePaymentCommand;
 import com.tuitionnetwork.tuitionnetwork.payment.port.in.CreatePaymentUseCase.FeeLine;
@@ -24,7 +21,6 @@ import com.tuitionnetwork.tuitionnetwork.payment.port.in.ExecutePaymentSagaUseCa
 import com.tuitionnetwork.tuitionnetwork.payment.port.in.ExecutePaymentSagaUseCase.ExecutePaymentCommand;
 import com.tuitionnetwork.tuitionnetwork.payment.port.in.ExecutePaymentSagaUseCase.PaymentResultView;
 import com.tuitionnetwork.tuitionnetwork.payment.port.in.GetPaymentUseCase;
-
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
@@ -34,13 +30,16 @@ import jakarta.validation.constraints.Size;
 
 @RestController
 @RequestMapping("/api/v1/payment-orders")
+//Tells Swagger that every route in this controller requires a Bearer JWT token.
 @SecurityRequirement(name = "bearerAuth")
 public class PaymentController {
 
     private static final Logger log = LoggerFactory.getLogger(PaymentController.class);
-
+//Port for creating new payment orders
     private final CreatePaymentUseCase createPayment;
+    //Port for processing payments
     private final ExecutePaymentSagaUseCase executePayment;
+    //Port for fetching payment details, receipts, and transaction history.
     private final GetPaymentUseCase getPayment;
 
     public PaymentController(CreatePaymentUseCase createPayment,

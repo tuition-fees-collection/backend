@@ -64,7 +64,8 @@ public class PaymentSagaOrchestrator implements ExecutePaymentSagaUseCase {
         }
         if (payment.getMethod().requiresGateway()
                 && !payment.getMethod().usesHeldSource()
-                && !command.hasCard()) {
+                && !command.hasCard()
+            && !command.hasSource()) {
             throw new IllegalStateException("A card payment needs card details - use /pay");
         }
         if (command.hasSource() && !sourceBelongsToCustomer(command)) {

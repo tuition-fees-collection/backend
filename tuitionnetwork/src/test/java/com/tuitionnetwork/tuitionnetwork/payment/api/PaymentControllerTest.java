@@ -21,6 +21,7 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import com.tuitionnetwork.tuitionnetwork.payment.domain.PaymentMethod;
@@ -34,6 +35,7 @@ import com.tuitionnetwork.tuitionnetwork.payment.port.in.GetPaymentUseCase;
 import com.tuitionnetwork.tuitionnetwork.payment.port.in.GetPaymentUseCase.PaymentView;
 import com.tuitionnetwork.tuitionnetwork.payment.services.PaymentAccessDeniedException;
 import com.tuitionnetwork.tuitionnetwork.payment.services.Paymentvalidationexception;
+@ActiveProfiles("test")
 @WebMvcTest(controllers = PaymentController.class)
 @AutoConfigureMockMvc(addFilters = false)
 @Import(PaymentExceptionHandler.class)

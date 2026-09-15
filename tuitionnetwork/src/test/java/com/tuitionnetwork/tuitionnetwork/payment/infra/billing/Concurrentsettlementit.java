@@ -20,7 +20,9 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.test.context.ActiveProfiles;
 import com.tuitionnetwork.tuitionnetwork.payment.port.portout.BillingPort;
+@ActiveProfiles("test")
 @SpringBootTest
 class ConcurrentSettlementIT {
     private static final UUID STUDENT = UUID.fromString("44444444-4444-4444-4444-444444444444");

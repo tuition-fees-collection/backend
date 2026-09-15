@@ -68,8 +68,8 @@ class PaymentSagaOrchestratorTest {
     void setUp() {
         List<PaymentMethodHandler> handlers = List.of(
                 new CashHandler(),
-                new CreditCardHandler(gateway),
-                new DebitCardHandler(gateway));
+                new CreditCardHandler(gateway,backoffice),
+                new DebitCardHandler(gateway,backoffice));
 
         orchestrator = new PaymentSagaOrchestrator(
                 payments, settlement, saga, receipts, gateway, backoffice, identity, handlers);

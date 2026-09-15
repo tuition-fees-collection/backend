@@ -29,7 +29,7 @@ public class FeeService{
     }
 
     private void ensureFee(Fee fee){
-        if(fee.getStatus()==FeeStatus.PAID){
+        if(fee.getStatus()==FeeStatus.SETTLED){
             throw new IllegalArgumentException("Fee is already paid: "+fee.getId());
         }
         if(fee.getOutstandingAmount().signum()<=0){

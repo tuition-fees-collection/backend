@@ -100,9 +100,9 @@ class FeeRepositoryTest {
 
     @Test 
     void testFindByStudentIdAndStatus(){
-        List<Fee> result=feeRepository.findByStudentIdAndStatus(studentId,FeeStatus.PARTIAL);
+        List<Fee> result=feeRepository.findByStudentIdAndStatus(studentId,FeeStatus.PARTIALLY_PAID);
         assertEquals(1,result.size());
-        assertEquals(FeeStatus.PARTIAL,result.get(0).getStatus());
+        assertEquals(FeeStatus.PARTIALLY_PAID,result.get(0).getStatus());
         assertEquals(studentId,result.get(0).getStudentId());
     }
 
@@ -116,9 +116,9 @@ class FeeRepositoryTest {
 
     @Test 
     void testFindByInstitutionIdAndStatus(){
-        List<Fee> result=feeRepository.findByInstitutionIdAndStatus(institutionId,FeeStatus.PAID);
+        List<Fee> result=feeRepository.findByInstitutionIdAndStatus(institutionId,FeeStatus.SETTLED);
         assertEquals(1,result.size());
-        assertEquals(FeeStatus.PAID,result.get(0).getStatus());
+        assertEquals(FeeStatus.SETTLED,result.get(0).getStatus());
         assertEquals(institutionId,result.get(0).getInstitutionId());
     }
 
@@ -127,7 +127,7 @@ class FeeRepositoryTest {
         List<Fee> result=feeRepository.findPayableFeeByStudentId(studentId);
         assertEquals(2,result.size());
         assertTrue(result.stream().allMatch(fee->fee.getStudentId().equals(studentId)));
-        assertTrue(result.stream().allMatch(fee->fee.getStatus()==FeeStatus.OUTSTANDING || fee.getStatus()==FeeStatus.PARTIAL));
+        assertTrue(result.stream().allMatch(fee->fee.getStatus()==FeeStatus.OUTSTANDING || fee.getStatus()==FeeStatus.PARTIALLY_PAID));
     }
 
     @Test 
@@ -136,7 +136,7 @@ class FeeRepositoryTest {
             List.of(studentId,otherStudentId));
         assertEquals(2,result.size());
         assertTrue(result.stream().allMatch(fee->fee.getStudentId().equals(studentId) || fee.getStudentId().equals(otherStudentId)));
-        assertTrue(result.stream().allMatch(fee->fee.getStatus()==FeeStatus.OUTSTANDING || fee.getStatus()==FeeStatus.PARTIAL));
+        assertTrue(result.stream().allMatch(fee->fee.getStatus()==FeeStatus.OUTSTANDING || fee.getStatus()==FeeStatus.PARTIALLY_PAID));
     }
 
     @Test 

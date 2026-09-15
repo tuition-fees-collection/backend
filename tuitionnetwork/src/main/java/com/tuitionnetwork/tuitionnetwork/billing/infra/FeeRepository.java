@@ -42,7 +42,7 @@ public interface FeeRepository extends JpaRepository<Fee,UUID> {
             WHERE f.studentId=:studentId
             AND f.status IN(
               com.tuitionnetwork.tuitionnetwork.billing.domain.FeeStatus.OUTSTANDING,
-              com.tuitionnetwork.tuitionnetwork.billing.domain.FeeStatus.PARTIAL
+              com.tuitionnetwork.tuitionnetwork.billing.domain.FeeStatus.PARTIALLY_PAID
             )
             """)
 
@@ -60,7 +60,7 @@ public interface FeeRepository extends JpaRepository<Fee,UUID> {
             Where f.studentId IN :studentIds
             AND f.status IN(
                com.tuitionnetwork.tuitionnetwork.billing.domain.FeeStatus.OUTSTANDING,
-               com.tuitionnetwork.tuitionnetwork.billing.domain.FeeStatus.PARTIAL
+               com.tuitionnetwork.tuitionnetwork.billing.domain.FeeStatus.PARTIALLY_PAID
             )
             """)
 

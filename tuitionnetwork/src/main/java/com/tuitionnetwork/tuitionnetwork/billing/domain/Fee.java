@@ -131,9 +131,9 @@ public class Fee{
         
         this.amountPaid=this.amountPaid.add(paymentAmount);
         if(this.amountPaid.compareTo(this.amount)==0){
-            this.status=FeeStatus.PAID;
+            this.status=FeeStatus.SETTLED;
         }else{
-            this.status=FeeStatus.PARTIAL;
+            this.status=FeeStatus.PARTIALLY_PAID;
         }
     }
 }

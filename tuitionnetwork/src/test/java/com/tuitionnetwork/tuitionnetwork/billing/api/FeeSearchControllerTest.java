@@ -8,6 +8,7 @@ import com.tuitionnetwork.tuitionnetwork.billing.service.FeeService;
 
 import com.tuitionnetwork.tuitionnetwork.identity.domain.NationalId;
 import com.tuitionnetwork.tuitionnetwork.identity.service.GuardianSearchScope;
+import com.tuitionnetwork.tuitionnetwork.identity.service.IdentityAccessService;
 import com.tuitionnetwork.tuitionnetwork.identity.service.IdentityQueryService;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -22,16 +23,20 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
  class FeeSearchControllerTest {
-
+    private IdentityAccessService identityAccessService;
     private IdentityQueryService identityQueryService;
     private FeeService feeService;
     private FeeSearchController feeSearchController;
 
     @BeforeEach
     void setUp(){
-        IdentityQueryService identityQueryService=mock(IdentityQueryService.class);
+        identityAccessService = mock(IdentityAccessService.class);
+        identityQueryService=mock(IdentityQueryService.class);
         feeService=mock(FeeService.class);
-        feeSearchController=new FeeSearchController(identityQueryService, feeService);
+        feeSearchController=new FeeSearchController(
+            identityAccessService,
+            identityQueryService,
+             feeService);
     }
 
     @Test
@@ -70,11 +75,59 @@ import static org.mockito.Mockito.*;
             new BigDecimal("10000.00"),
             result.get(0).totalOutstandingAmount()
         );
+        verify(identityAccessService).requireBankOfficer();
         verify(identityQueryService).resolveGuardianSearchScope(
             new NationalId(feeSearchRequest.nationalId())
         );
 
         verify(feeService).getPayableFeesForStudent(studentId);
+    }
+
+    @Test
+    void testGetMyFees(){
+        UUID studentId=UUID.randomUUID();
+        UUID institutionId=UUID.randomUUID();
+        Fee fee=new Fee(
+            studentId,
+            institutionId,
+            FeeType.TUITION,
+            "2026-2027",
+            "EGP",
+            new BigDecimal("8000.00"),
+            null
+
+        );
+        when(
+            identityQueryService.getCurrentPayerStudentIds()
+    ).thenReturn(Set.of(studentId));
+
+    when(
+            feeService.getPayableFeesForStudent(studentId)
+    ).thenReturn(List.of(fee));
+
+    List<CategorizedFeesResponse> result =
+            feeSearchController.getMyFees();
+
+    assertEquals(1, result.size());
+
+    assertEquals(
+            studentId,
+            result.get(0).studentId()
+    );
+assertEquals(
+            new BigDecimal("8000.00"),
+            result.get(0).totalOutstandingAmount()
+    );
+
+    verify(identityQueryService)
+            .getCurrentPayerStudentIds();
+
+    verify(feeService)
+            .getPayableFeesForStudent(studentId);
+
+    verify(identityAccessService, never())
+            .requireBankOfficer();
+
     }
 
     

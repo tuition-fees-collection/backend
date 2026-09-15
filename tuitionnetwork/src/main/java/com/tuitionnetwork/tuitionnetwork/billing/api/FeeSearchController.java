@@ -3,7 +3,7 @@ import com.tuitionnetwork.tuitionnetwork.billing.domain.Fee;
 import com.tuitionnetwork.tuitionnetwork.billing.api.dto.FeeSearchRequest;
 import com.tuitionnetwork.tuitionnetwork.billing.service.FeeService;
 import com.tuitionnetwork.tuitionnetwork.billing.api.dto.CategorizedFeesResponse;
-import org.springframework.web.bind.annotation.*;
+
 
 import java.util.List;
 import java.util.UUID;
@@ -14,6 +14,7 @@ import jakarta.validation.Valid;
 
 import com.tuitionnetwork.tuitionnetwork.identity.domain.NationalId;
 import com.tuitionnetwork.tuitionnetwork.identity.service.GuardianSearchScope;
+import com.tuitionnetwork.tuitionnetwork.identity.service.IdentityAccessService;
 import com.tuitionnetwork.tuitionnetwork.identity.service.IdentityQueryService;
 
 import org.springframework.web.bind.annotation.GetMapping;
@@ -21,17 +22,21 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 @RestController
 @RequestMapping("/api/v1/fee-searches")
+@SecurityRequirement(name="bearerAuth")
 public class FeeSearchController{
-
+    private final IdentityAccessService identityAccessService;
     private final IdentityQueryService identityQueryService;
     private final FeeService feeService;
 
     public FeeSearchController(
+            IdentityAccessService identityAccessService,
             IdentityQueryService identityQueryService,
             FeeService feeService
     ) {
+        this.identityAccessService=identityAccessService;
         this.identityQueryService=identityQueryService;
         this.feeService=feeService;
     }
@@ -41,13 +46,14 @@ public class FeeSearchController{
     public List<CategorizedFeesResponse> searchFessByNationalId(
         @Valid @RequestBody FeeSearchRequest request
     ){
+        identityAccessService.requireBankOfficer();
         NationalId nationalId=new NationalId(request.nationalId());
         GuardianSearchScope guardianSearchScope=identityQueryService.resolveGuardianSearchScope(nationalId);
         return buildCategorizedFees(guardianSearchScope.studentIds());
     }
 
     /*logged in gurdian gets fees for their students */
-    @GetMapping
+    @GetMapping("/me")
     public List<CategorizedFeesResponse> getMyFees(){
         Set<UUID> studentIds=identityQueryService.getCurrentPayerStudentIds();
         return buildCategorizedFees(studentIds);

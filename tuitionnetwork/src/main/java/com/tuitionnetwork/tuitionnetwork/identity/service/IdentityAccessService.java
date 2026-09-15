@@ -16,10 +16,4 @@ public interface IdentityAccessService {
 
     void requireStudentAccess(UUID studentId);
 
-    PaymentCaller authorizePaymentCreation(UUID studentId);
-
-    void authorizePaymentAccess(UUID paymentGuardianId);
-
-    void requireCashCollection();
-
 }

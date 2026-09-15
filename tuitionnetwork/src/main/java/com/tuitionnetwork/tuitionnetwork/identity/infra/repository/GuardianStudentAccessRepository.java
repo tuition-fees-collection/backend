@@ -3,7 +3,6 @@ package com.tuitionnetwork.tuitionnetwork.identity.infra.repository;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 
-import java.util.Optional;
 import java.util.UUID;
 
 @Repository
@@ -26,18 +25,5 @@ public class GuardianStudentAccessRepository {
                 .param("studentId", studentId)
                 .query(Boolean.class)
                 .single();
-    }
-
-    public Optional<UUID> findFirstGuardianIdByStudentId(UUID studentId) {
-        return jdbcClient.sql("""
-                SELECT guardian_id
-                FROM identity.guardian_student
-                WHERE student_id = :studentId
-                ORDER BY guardian_id
-                LIMIT 1
-                """)
-                .param("studentId", studentId)
-                .query(UUID.class)
-                .optional();
     }
 }

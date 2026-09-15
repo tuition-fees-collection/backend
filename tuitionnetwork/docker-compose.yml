@@ -35,7 +35,9 @@ services:
   app:
     build: .
     environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-tuition}
+      JWT_SECRET_BASE64: ${JWT_SECRET_BASE64}
+      NATIONAL_ID_HMAC_KEY_BASE64: ${NATIONAL_ID_HMAC_KEY_BASE64}
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/tuition
       SPRING_DATASOURCE_USERNAME: tuition
       SPRING_DATASOURCE_PASSWORD: tuition
       BANKMOCK_BASE_URL: http://host.docker.internal:8000

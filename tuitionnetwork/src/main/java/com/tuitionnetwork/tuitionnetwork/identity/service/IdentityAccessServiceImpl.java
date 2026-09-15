@@ -3,7 +3,6 @@ package com.tuitionnetwork.tuitionnetwork.identity.service;
 import com.tuitionnetwork.tuitionnetwork.identity.domain.AuthenticatedActor;
 import com.tuitionnetwork.tuitionnetwork.identity.domain.RoleCode;
 import com.tuitionnetwork.tuitionnetwork.identity.infra.repository.GuardianStudentAccessRepository;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import com.tuitionnetwork.tuitionnetwork.identity.domain.AuditAction;
@@ -16,17 +15,13 @@ public class IdentityAccessServiceImpl implements IdentityAccessService {
     private final GuardianStudentAccessRepository guardianStudentAccessRepository;
 
     private final AuditService auditService;
-    private final UUID onlineChannelEmployeeId;
 
     public IdentityAccessServiceImpl(
             CurrentActorProvider currentActorProvider,
-            GuardianStudentAccessRepository guardianStudentAccessRepository,
-            AuditService auditService,
-            @Value("${payments.online-channel-employee-id}") UUID onlineChannelEmployeeId) {
+            GuardianStudentAccessRepository guardianStudentAccessRepository, AuditService auditService) {
         this.auditService = auditService;
         this.currentActorProvider = currentActorProvider;
         this.guardianStudentAccessRepository = guardianStudentAccessRepository;
-        this.onlineChannelEmployeeId = onlineChannelEmployeeId;
     }
 
     @Override
@@ -68,48 +63,6 @@ public class IdentityAccessServiceImpl implements IdentityAccessService {
         if (actor.role() != RoleCode.ADMIN) {
             deny(actor);
         }
-    }
-
-    @Override
-    public PaymentCaller authorizePaymentCreation(UUID studentId) {
-        AuthenticatedActor actor = currentActor();
-        if (studentId == null) {
-            deny(actor);
-        }
-        if (actor.role() == RoleCode.PAYER) {
-            requireStudentAccess(studentId);
-            return new PaymentCaller(actor.actorId(), onlineChannelEmployeeId, RoleCode.PAYER);
-        }
-        if (actor.role() == RoleCode.BANK_OFFICER) {
-            UUID guardianId = guardianStudentAccessRepository
-                    .findFirstGuardianIdByStudentId(studentId)
-                    .orElse(null);
-            if (guardianId == null) {
-                deny(actor);
-            }
-            return new PaymentCaller(guardianId, actor.actorId(), RoleCode.BANK_OFFICER);
-        }
-        deny(actor);
-        throw new AccessDeniedException("Access denied");
-    }
-
-    @Override
-    public void authorizePaymentAccess(UUID paymentGuardianId) {
-        AuthenticatedActor actor = currentActor();
-        if (actor.role() == RoleCode.BANK_OFFICER) {
-            return;
-        }
-        if (actor.role() == RoleCode.PAYER
-                && actor.actorId() != null
-                && actor.actorId().equals(paymentGuardianId)) {
-            return;
-        }
-        deny(actor);
-    }
-
-    @Override
-    public void requireCashCollection() {
-        requireBankOfficer();
     }
 
     private void deny(AuthenticatedActor actor) {

@@ -4,6 +4,8 @@ package com.tuitionnetwork.tuitionnetwork.billing.infra;
 
 import com.tuitionnetwork.tuitionnetwork.billing.domain.Fee;
 import com.tuitionnetwork.tuitionnetwork.billing.domain.FeeStatus;
+import com.tuitionnetwork.tuitionnetwork.billing.domain.FeeType;
+
 import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
@@ -92,6 +94,24 @@ public interface FeeRepository extends JpaRepository<Fee,UUID> {
             UUID studentId,
             UUID institutionId
             );
+
+
+
+            @Query("""
+                         SELECT f
+                         FROM Fee f
+                         WHERE f.institutionId = :institutionId
+                         AND f.status = :status
+                         AND (:feeType IS NULL OR f.feeType = :feeType)
+                         AND (:collectionPeriod IS NULL OR f.collectionPeriod = :collectionPeriod)
+                         ORDER BY f.studentId, f.feeType
+                    """)
+            List<Fee> findInstitutionCollections(
+                       @Param("institutionId") UUID institutionId,
+                       @Param("status") FeeStatus status,
+                       @Param("feeType") FeeType feeType,
+                       @Param("collectionPeriod") String collectionPeriod
+                       );
 
 
 }

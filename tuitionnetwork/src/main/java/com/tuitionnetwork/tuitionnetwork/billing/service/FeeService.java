@@ -6,6 +6,8 @@ import com.tuitionnetwork.tuitionnetwork.billing.domain.Fee;
 import com.tuitionnetwork.tuitionnetwork.billing.infra.FeeRepository;
 import org.springframework.transaction.annotation.Transactional;
 import com.tuitionnetwork.tuitionnetwork.billing.domain.FeeStatus;
+import com.tuitionnetwork.tuitionnetwork.billing.domain.FeeType;
+
 import java.util.List;
 import java.util.UUID;
 import java.math.BigDecimal;
@@ -103,6 +105,27 @@ public class FeeService{
          if (paymentAmount.compareTo(fee.getOutstandingAmount())>0) {
             throw new IllegalArgumentException("Payment amount exceeds outstanding amount");
         }
+    }
+
+    /* get institution collections with optional fee type and period filters */
+    public List<Fee> getInstitutionCollections(
+         UUID institutionId,
+        FeeStatus feeStatus,
+        FeeType feeType,
+        String collectionPeriod 
+    ){
+        if(institutionId==null){
+            throw new IllegalArgumentException("Institution ID is required");
+        }
+        if(feeStatus==null){
+            throw new IllegalArgumentException("Fee status is required");
+        }
+        return feeRepository.findInstitutionCollections(
+            institutionId,
+             feeStatus, 
+             feeType, 
+             collectionPeriod);
+       
     }
 
 }

@@ -38,12 +38,10 @@ jobs:
           semgrep scan --config "p/java" --config "p/security-audit" --json --output semgrep-results.json || true
 
       
-      # STEP 3: Generate CycloneDX SBOM
-      
+     # STEP 3: Generate CycloneDX SBOM
       - name: Generate CycloneDX SBOM
         run: |
-          chmod +x mvnw
-          ./mvnw org.cyclonedx:cyclonedx-maven-plugin:makeAggregateBom -DschemaVersion=1.5 -Dcyclonedx.outputFormat=json || true
+          mvn org.cyclonedx:cyclonedx-maven-plugin:makeAggregateBom -DschemaVersion=1.5 -Dcyclonedx.outputFormat=json || true
 
       
       # STEP 4: SCA Scan Trivy

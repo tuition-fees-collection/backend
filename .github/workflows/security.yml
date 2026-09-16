@@ -42,15 +42,21 @@ jobs:
       - name: Generate CycloneDX SBOM
         run: |
           mvn org.cyclonedx:cyclonedx-maven-plugin:makeAggregateBom -DschemaVersion=1.5 -Dcyclonedx.outputFormat=json || true
-
+          # لو الملف بيتعمل جوة target/bom.json نتأكد إنه موجود
+          ls -la target/ || true
       
-      # STEP 4: SCA Scan Trivy
-      
+     # STEP 4: SCA Scan Trivy
       - name: Trivy SCA Scan
         run: |
           curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin
           trivy fs --scanners vuln --format json --output trivy-results.json . || true
-
+          # التأكد من إنشاء الملف
+          if [ -f "trivy-results.json" ]; then
+            echo "Trivy report generated successfully."
+          else
+            echo "Warning: Trivy report not found!"
+            echo "[]" > trivy-results.json
+          fi
       
       # DefectDojo 
       

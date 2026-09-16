@@ -19,8 +19,8 @@ public class FeeBalanceService{
     /* get total outstanding amount for a list of fees */
     public BigDecimal getTotalOutstandingAmount(List<Fee> fees){
         return fees.stream()
-        .map(Fee::getOutstandingAmount)
-        .reduce(BigDecimal.ZERO, BigDecimal::add);
+        .map(fee->fee.getOutstandingAmount())
+        .reduce(BigDecimal.ZERO,(total,amount)->total.add(amount));
     }
 
     

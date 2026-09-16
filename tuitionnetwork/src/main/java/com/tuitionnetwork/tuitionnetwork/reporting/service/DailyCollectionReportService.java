@@ -35,16 +35,16 @@ public class DailyCollectionReportService {
         Instant start=date.atStartOfDay(zone).toInstant();
         Instant end=date.plusDays(1).atStartOfDay(zone).toInstant();
         List<DailyCollectionRecord> records=reportRepository.findDailyCollections(institutionId,start,end);
-        BigDecimal totalCollected=records.stream().map(DailyCollectionRecord::amountApplied).reduce(BigDecimal.ZERO, BigDecimal::add);
-        long paymentCount=records.stream().map(DailyCollectionRecord::paymentId).distinct().count();
+        BigDecimal totalCollected=records.stream().map(record->record.amountApplied()).reduce(BigDecimal.ZERO,(total,amount)->total.add(amount));
+        long paymentCount=records.stream().map(record->record.paymentId()).distinct().count();
         Map<FeeType,BigDecimal> amountByFeeType=records.stream().collect(Collectors.groupingBy(
-            DailyCollectionRecord::feeType,
-            Collectors.reducing(BigDecimal.ZERO,DailyCollectionRecord::amountApplied,BigDecimal::add)
+            record->record.feeType(),
+            Collectors.reducing(BigDecimal.ZERO,record->record.amountApplied(),(total,amount)->total.add(amount))
         ));
 
         Map<PaymentMethod,BigDecimal> amountByPaymentmethod=records.stream().collect(Collectors.groupingBy(
-             DailyCollectionRecord::paymentMethod,
-            Collectors.reducing(BigDecimal.ZERO,DailyCollectionRecord::amountApplied,BigDecimal::add)
+             record->record.paymentMethod(),
+            Collectors.reducing(BigDecimal.ZERO,record->record.amountApplied(),(total,amount)->total.add(amount))
         ));
 
         return new DailyCollectionReport(

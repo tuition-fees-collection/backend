@@ -18,16 +18,16 @@ public record StudentFeeRecordResponse (
         List<Fee> fees
     ){
         BigDecimal yearTotal=fees.stream().
-        map(Fee::getAmount).
-        reduce(BigDecimal.ZERO, BigDecimal::add);
+        map(fee->fee.getAmount()).
+        reduce(BigDecimal.ZERO,(total,amount)->total.add(amount));
 
         BigDecimal amountPaid=fees.stream().
-        map(Fee::getAmountPaid).
-        reduce(BigDecimal.ZERO, BigDecimal::add);
+        map(fee->fee.getAmountPaid()).
+        reduce(BigDecimal.ZERO,(total,amount)->total.add(amount));
 
         BigDecimal amountOutstanding=fees.stream().
-        map(Fee::getOutstandingAmount).
-        reduce(BigDecimal.ZERO, BigDecimal::add);
+        map(fee->fee.getOutstandingAmount()).
+        reduce(BigDecimal.ZERO,(total,amount)->total.add(amount));
 
         List<FeeSearchResponse> feeItems=fees.stream().
         map(FeeSearchResponse::from).

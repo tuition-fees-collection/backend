@@ -19,12 +19,12 @@ public record CategorizedFeesResponse(
     public static CategorizedFeesResponse from(UUID studentId, List<Fee> fees){
         Map<FeeType,List<FeeSearchResponse>> feesByType=fees.stream()
             .collect(Collectors.groupingBy(
-                Fee::getFeeType,
+                fee->fee.getFeeType(),
                 Collectors.mapping(FeeSearchResponse::from,Collectors.toList())
             ));
         BigDecimal totalOutstandingAmount=fees.stream()
-            .map(Fee::getOutstandingAmount)
-            .reduce(BigDecimal.ZERO,BigDecimal::add);
+            .map(fee->fee.getOutstandingAmount())
+            .reduce(BigDecimal.ZERO,(total,amount)->total.add(amount));
         return new CategorizedFeesResponse(studentId,feesByType,totalOutstandingAmount);
     }
    

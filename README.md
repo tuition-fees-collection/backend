@@ -1,9 +1,12 @@
 # Tuition Network backend
 
-This repository currently provides a Spring Boot application and a PostgreSQL
-database schema. Business controllers, entities, repositories, payment integrations,
-and a frontend have not been implemented here yet. Starting it verifies the
-foundation; it does not provide a working tuition payment product.
+Spring Boot API for a tuition-fees collection network: institutions upload
+outstanding fees, guardians or bank officers pay them, receipts are issued, and
+optional instalment (EPP) plans are created against a bank mock.
+
+There is no frontend in this repository. Card, source, EPP, and MOI calls go to
+an external bank-mock service (default `http://localhost:8000`), which is not
+shipped here.
 
 ## Start everything
 
@@ -13,7 +16,17 @@ containers with the WSL 2 backend. The first build needs internet access and can
 take several minutes. Docker supplies Java and Maven, so a host JDK is optional
 for this route.
 
-From the repository root, in Terminal or PowerShell:
+The app will not start without crypto secrets. From `tuitionnetwork`, export at
+least these (CI uses the same names). JWT and national-id keys must decode to
+32+ bytes:
+
+```sh
+export JWT_SECRET_BASE64='MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5MDE='
+export NATIONAL_ID_HMAC_KEY_BASE64='YWJjZGVmZ2hpamtsbW5vcHFyc3R1dnd4eXpBQkNERUY='
+export NATIONAL_ID_ENCRYPTION_KEY_BASE64='MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY='
+```
+
+Do not reuse these values outside local development.
 
 ```sh
 cd tuitionnetwork
@@ -27,44 +40,79 @@ alone does not prove the application has finished starting.
 
 | Component | Local address | Purpose |
 | --- | --- | --- |
-| Backend | http://localhost:8080 | Spring Boot server |
+| Backend | http://localhost:8080 | Spring Boot API |
+| Swagger UI | http://localhost:8080/swagger-ui.html | Interactive OpenAPI |
+| OpenAPI JSON | http://localhost:8080/v3/api-docs | Machine-readable contract |
 | pgAdmin | http://localhost:5051 | Browser interface to inspect PostgreSQL |
 | PostgreSQL | localhost:5433 | Database connection from your IDE/host |
+| Bank mock | http://localhost:8000 | External; required for card, source, EPP, MOI |
 
-## Swagger / OpenAPI
+Compose points the app at `http://host.docker.internal:8000` for the bank mock.
 
-With the backend running, open http://localhost:8080/swagger-ui.html.
-The JSON API contract is at http://localhost:8080/v3/api-docs. If you override
-the backend host port, use that port in these URLs.
+## Authentication
 
-The project uses springdoc-openapi 3.1.0 for Spring Boot 4
-([official documentation](https://springdoc.org/)). `OpenApiConfig` sets the
-project title, description, and API version. There are no business controllers
-yet, so an empty operations list is expected. New Spring MVC controller endpoints
-will appear automatically; no sample business endpoint has been added.
+The API is a stateless JWT resource server. CSRF is disabled. There is no form
+login and no default `user` password.
 
-`SecurityConfig` permits anonymous access to Swagger UI and the JSON documentation
-routes. Other application routes require authentication. Form login, HTTP Basic,
-and default CSRF protection remain enabled. Documentation access is public in
-every profile with this configuration; revisit that policy before deployment.
-The metadata describes the planned API scope, not already implemented features.
+1. `POST /api/v1/auth/login` with `{"username","password"}` (no token).
+2. Use `Authorization: Bearer <token>` on every other `/api/**` route.
+3. Tokens are HS256, issuer `tuitionnetwork`, audience `tuitionnetwork-api`,
+   15-minute lifetime. Claims include `actor_id`, `actor_type`, `role`,
+   `token_version`, and optional `institution_id` / `branch`.
+4. Deactivating an account or changing `token_version` invalidates outstanding
+   tokens. Five failed logins lock the account for 15 minutes.
 
-The normal `clean verify` command also tests the documentation JSON, project
-metadata, Swagger UI assets, and protection of non-documentation routes. Existing
-CI runs these tests automatically; no separate Swagger installation is needed.
+Roles (`identity.role`, enforced in services rather than `@PreAuthorize`):
 
-Spring Security currently supplies its default login page. Use username `user`
-and the generated password in `docker compose logs app` if you want to inspect
-it. The password changes on restart. There is no home-page controller, so a 404
-after login is expected. An unauthenticated API request may return 401.
+| Role | Typical access |
+| --- | --- |
+| `PAYER` | Pay fees for linked students (guardian); list own fees. Online payments are stamped with the seeded ONLINE CHANNEL employee. |
+| `BANK_OFFICER` | Create payments for any linked student; cash collection; payment history; fee search by national ID. |
+| `INSTITUTION_OFFICER` | CSV fee uploads, student fee records, collections, and daily-collection reports for the institution on the JWT. |
+| `ADMIN` | Institutions, staff, and auth-account lifecycle. |
+
+Admin HTTP APIs create backoffice and institution logins. There is no public
+endpoint to provision a payer account.
+
+Swagger UI and `/v3/api-docs` are anonymous in every profile; revisit that
+before deployment. Authorize in Swagger with the Bearer token from login.
+`OpenApiConfig` sets the title and version; live controllers appear
+automatically.
+
+Unauthenticated API calls return 401. There is no home-page controller, so
+`GET /` is 401 without a token and 404 with one.
 
 pgAdmin runs in desktop mode (`SERVER_MODE=False`), so its web UI normally opens
 without a login. Its configured account is `admin@tuitionnetwork.dev`, password
 `tuition`. Expand **Servers → Tuitionnetwork (local)** and enter database password
 `tuition` when asked. Database name and username are both `tuition`.
 
-These credentials and loopback-only port bindings are for local development.
-Each teammate has their own Docker volumes and database; records are not shared.
+These credentials, sample secrets, and loopback-only port bindings are for local
+development. Each teammate has their own Docker volumes and database; records
+are not shared.
+
+## HTTP API
+
+Base path `/api/v1`. Create-payment and create-EPP-plan require header
+`Idempotency-Key`.
+
+| Area | Routes |
+| --- | --- |
+| Auth | `POST /auth/login` |
+| Payments | `POST /payment-orders`, `POST …/{id}/pay`, `/pay-cash`, `/pay-source`, `/3ds`, `GET …/{id}`, `GET …/{id}/receipt`, `GET /payment-orders`, `GET /payment-orders/customer-lookup` |
+| EPP | `GET /epp/quotes`, `POST /epp/plans`, `GET /epp/plans`, `GET /epp/plans/{id}`, `POST /epp/plans/{id}/cancel` |
+| Uploads | `POST /integration/uploads`, `GET /integration/uploads`, `GET /integration/uploads/{batchId}` |
+| Billing | `GET /billing/students/{studentId}/fees`, `GET /billing/collections` |
+| Fee search | `POST /fee-searches` (bank officer, national ID), `GET /fee-searches/me` (payer) |
+| Reporting | `GET /reporting/daily-collections`, `/daily-collections/csv`, `/daily-collections/pdf` |
+| Admin | `/admin/institutions…`, `/admin/backoffice-employees…`, `/admin/accounts…` |
+| Reconciliation | `/admin/gateway-checks` (also runs on a 120s schedule) |
+
+Missing guardian on fee search returns an empty list. There is no public
+endpoint to provision a payer account.
+
+Reconciliation, EPP list/quotes, and customer-lookup currently require only a
+valid JWT (no extra role check in those controllers).
 
 ## Develop with the IDE
 
@@ -80,9 +128,15 @@ docker compose stop app
 docker compose up -d --wait postgres pgadmin
 ```
 
+Export the same crypto secrets (and `BANKMOCK_BASE_URL` if the mock is not on
+`localhost:8000`). Host Java uses `localhost:${POSTGRES_PORT:5432}` unless you
+override `SPRING_DATASOURCE_*`. Compose maps Postgres to host **5433** by
+default, so set `POSTGRES_PORT=5433` for IDE/Maven runs.
+
 macOS/Linux:
 
 ```sh
+export POSTGRES_PORT=5433
 ./mvnw clean verify
 ./mvnw spring-boot:run
 ```
@@ -90,6 +144,7 @@ macOS/Linux:
 Windows PowerShell:
 
 ```powershell
+$env:POSTGRES_PORT=5433
 .\mvnw.cmd clean verify
 .\mvnw.cmd spring-boot:run
 ```
@@ -100,28 +155,56 @@ returning to the full Docker stack. Tests require PostgreSQL to be running and
 apply migrations to the configured database; use only a local development/test
 database. CI uses a fresh PostgreSQL instance.
 
+Optional sample rows: `tuitionnetwork/scripts/seed-dev-data.sql` (not a Flyway
+migration).
+
 ## How it fits together
 
-- `pom.xml` selects Java 21, Spring Boot 4.1.1, Spring AI 2.0.1, and dependencies.
-- `TuitionnetworkApplication.java` starts Spring, its embedded web server,
-  security, and database configuration.
-- `application.properties` configures the host database connection. Compose
-  overrides it with `postgres:5432` inside Docker; `localhost` in a container
-  refers to that container itself.
-- Flyway applies `src/main/resources/db/migration/V1__init_schema.sql` and then
-  `V2__sync_with_mock_services.sql`, recording them in
-  `public.flyway_schema_history`. The schemas separate identity, billing,
-  payments, instalments, receipts, notifications, reporting, integration, and audit.
-- Hibernate uses `ddl-auto=validate`, so schema changes belong in Flyway SQL.
-  There are no JPA entities yet, so entity-to-table validation is currently limited.
-- The Dockerfile builds the JAR with a JDK and runs it with a smaller Java runtime.
-  It skips tests because the image build has no database; run `clean verify`
-  separately. CI does this before building the image.
+- `pom.xml` selects Java 21, Spring Boot 4.1.1, Spring AI 2.0.1 (unused),
+  springdoc-openapi 3.1.0, commons-csv 1.12.0, and OAuth2 resource-server JWT.
+- `TuitionnetworkApplication.java` starts Spring, the embedded web server,
+  security, JPA, Flyway, and scheduling (outbox poll and gateway sweeps).
+- `application.properties` configures the host database, Flyway schemas, JWT
+  and national-id keys, bank-mock URL/API key, and multipart limits (5MB file /
+  6MB request). Compose overrides the datasource with `postgres:5432` inside
+  Docker; `localhost` in a container refers to that container itself.
+- Packages under `com.tuitionnetwork.tuitionnetwork`:
+  - `identity` — login, JWT, roles, guardians/students, admin, MOI adapter, audit
+  - `billing` — JPA `Fee`, institution collections, fee search
+  - `integration` — CSV upload, batch dedupe, guardian/student/fee provisioning
+  - `payment` — orders, saga, receipts, outbox, reconciliation
+  - `payments` — RestClient adapters to the bank mock
+  - `epp` — quotes and instalment plans (credit card only; tenors 3/6/12/18)
+  - `reporting` — daily collection JSON, CSV, and PDF for an institution
+  - `config` — `SecurityConfig`, `JwtCryptoConfig`, OpenAPI
+- Flyway applies `src/main/resources/db/migration/V1__…` through `V10__…`,
+  recording them in `public.flyway_schema_history`. Schemas: `identity`,
+  `billing`, `payments`, `epp`, `receipts`, `notifications`, `reporting`,
+  `integration`, `common`. Hibernate `ddl-auto=validate`; schema changes belong
+  in new Flyway files, never in already-applied ones.
+- Payment flow: `POST /payment-orders` creates `CREATED` + allocations;
+  `/pay`, `/pay-cash`, or `/pay-source` runs the saga (`PENDING` → charge →
+  settle fees → receipt → `SUCCESSFUL`, or `FAILED` / `RECON_REQUIRED`).
+  Outbox events are persisted and currently logged only; `notifications` and
+  `payments.settlement` tables have no Java writers yet.
+- The Dockerfile builds the JAR with a JDK and runs it with a smaller Java
+  runtime. It skips tests because the image build has no database; run
+  `clean verify` separately. CI does this before building the image.
 - pgAdmin is optional database tooling. The app talks directly to PostgreSQL.
 - The Spring AI PostgresML dependency is present, but plain `postgres:16` does
-  not provide the PostgresML extension. No AI feature calls it yet; startup passing
-  does not establish that embeddings work. Implement that infrastructure before
-  adding embedding calls. See the [Spring AI documentation](https://docs.spring.io/spring-ai/reference/api/embeddings/postgresml-embeddings.html).
+  not provide the PostgresML extension. No AI feature calls it. See the
+  [Spring AI documentation](https://docs.spring.io/spring-ai/reference/api/embeddings/postgresml-embeddings.html).
+
+## Tests
+
+`./mvnw clean verify` runs the default suite (unit, MVC, and persistence tests
+that use the configured Postgres). Tests tagged `@Tag("integration")` call the
+live bank mock and are **excluded by default** (`excludedGroups=integration` in
+`pom.xml`) so CI does not depend on that service.
+
+```sh
+./mvnw test -Dgroups=integration -DexcludedGroups=
+```
 
 ## Team workflow
 
@@ -131,8 +214,9 @@ database. CI uses a fresh PostgreSQL instance.
 3. Never edit a migration already applied by teammates. Add the next versioned
    SQL file and coordinate version numbers to avoid duplicate versions.
 4. Run `clean verify` before opening a PR. The GitHub workflow repeats it against
-   fresh PostgreSQL and builds the Docker image. Enable its required status check
-   in branch protection if the team wants to enforce it.
+   fresh PostgreSQL (with the crypto env vars set) and builds the Docker image.
+   Enable its required status check in branch protection if the team wants to
+   enforce it.
 5. After pulling changes, rerun `docker compose up -d --build` for Docker mode,
    or restart the IDE app. Flyway applies new migrations automatically.
 
@@ -149,27 +233,33 @@ and run verification after pulling them.
 
 ## Ports and troubleshooting
 
-If a port is occupied, copy `tuitionnetwork/.env.example` to `tuitionnetwork/.env`
-and change the host port, then run Compose again. For example, `APP_PORT=8081`
-makes the Docker backend available on http://localhost:8081. Internal container
-ports remain unchanged.
+Compose reads a `tuitionnetwork/.env` file automatically if you create one;
+Java launched from the IDE/Maven does not. Host-port overrides:
 
-Compose reads `.env` automatically; Java launched from the IDE/Maven does not.
-If you change `POSTGRES_PORT`, also set that environment variable in the IDE or
-shell. `APP_PORT` only changes Docker's host binding; for a host Java process use
-`SERVER_PORT` if needed. Spring also accepts `SPRING_DATASOURCE_URL`,
-`SPRING_DATASOURCE_USERNAME`, and `SPRING_DATASOURCE_PASSWORD` overrides.
+| Variable | Default | Who reads it |
+| --- | --- | --- |
+| `APP_PORT` | 8080 | Compose host binding only (`SERVER_PORT` for a host JVM) |
+| `POSTGRES_PORT` | 5433 in Compose; 5432 in `application.properties` | Compose host binding; also set it for IDE/Maven |
+| `PGADMIN_PORT` | 5051 | Compose host binding |
+| `BANKMOCK_BASE_URL` | `http://localhost:8000` | Spring (Compose sets `host.docker.internal:8000`) |
+| `BANKMOCK_API_KEY` | `wit-intern-2026` | Spring |
+
+Spring also accepts `SPRING_DATASOURCE_URL`, `SPRING_DATASOURCE_USERNAME`, and
+`SPRING_DATASOURCE_PASSWORD` overrides.
 
 | Symptom | Check |
 | --- | --- |
 | Cannot connect to Docker | Start Docker Desktop or the Docker daemon |
 | Database connection refused | Run `docker compose ps` and wait for PostgreSQL health |
+| App exits on missing JWT/national-id keys | Export the three `*_BASE64` variables before Compose or `spring-boot:run` |
+| Card / EPP / MOI calls fail | Start the bank mock on port 8000 (or point `BANKMOCK_BASE_URL` at it) |
 | Address already in use | Stop the other app or change host ports |
 | `release version 21 not supported` | Check `java -version` and the IDE Maven JDK |
 | `./mvnw: Permission denied` | Run `chmod +x mvnw` on macOS/Linux, or use `sh mvnw` |
 | Flyway checksum mismatch | Restore the original migration; add a new migration |
 | Dependencies/images fail to download | Check internet, VPN/proxy, and registry access |
 | pgAdmin cannot connect | Inside Docker use host `postgres`, port `5432` |
+| Unauthenticated `/api/v1/**` is 401 | Call `/api/v1/auth/login` and send `Authorization: Bearer` |
 
 Compose waits for the PostgreSQL health check before starting the app and pgAdmin,
 as described in [Docker's startup-order documentation](https://docs.docker.com/compose/how-tos/startup-order/).
@@ -189,17 +279,3 @@ docker compose down
 
 `stop` and `down` preserve named database volumes. `down -v` deletes those volumes
 and their data; it is not a routine fix for migration errors.
-
-## Verification recorded on 2026-09-05
-
-On this Apple Silicon Mac with JDK 21 and Docker Compose 2.30.3:
-
-- `./mvnw -B clean verify`: passed, 5 tests, 0 failures/errors (including Swagger security checks).
-- V1 and V2 applied to a fresh local database and validated on subsequent app startup.
-- The final Docker image built and the backend started with PostgreSQL connected.
-- Backend `/login`: HTTP 200; unauthenticated `/`: HTTP 401, as expected.
-- Swagger UI and `/v3/api-docs`: HTTP 200 without login; `/api/v1/fees`: HTTP 401 without authentication.
-- pgAdmin web interface: HTTP 200.
-- Image manifests include Linux ARM64 and AMD64 for PostgreSQL, both Java images,
-  and the pinned pgAdmin image. Other teammates' devices have not been tested.
-- The added GitHub Actions workflow has not yet run on GitHub.

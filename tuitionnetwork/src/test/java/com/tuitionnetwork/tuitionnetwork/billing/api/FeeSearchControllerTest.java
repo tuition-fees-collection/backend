@@ -10,6 +10,7 @@ import com.tuitionnetwork.tuitionnetwork.identity.domain.NationalId;
 import com.tuitionnetwork.tuitionnetwork.identity.service.GuardianSearchScope;
 import com.tuitionnetwork.tuitionnetwork.identity.service.IdentityAccessService;
 import com.tuitionnetwork.tuitionnetwork.identity.service.IdentityQueryService;
+import com.tuitionnetwork.tuitionnetwork.identity.service.GuardianNotFoundException;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -129,6 +130,29 @@ assertEquals(
             .requireBankOfficer();
 
     }
+
+    @Test
+void testSearchFeesByNationalIdReturnsEmptyListWhenGuardianNotFound() {
+    FeeSearchRequest request =
+            new FeeSearchRequest("29805150101023");
+
+    when(identityQueryService.resolveGuardianSearchScope(
+            new NationalId(request.nationalId())
+    )).thenThrow(new GuardianNotFoundException());
+
+    List<CategorizedFeesResponse> result =
+            feeSearchController.searchFessByNationalId(request);
+
+    assertTrue(result.isEmpty());
+
+    verify(identityAccessService).requireBankOfficer();
+
+    verify(identityQueryService).resolveGuardianSearchScope(
+            new NationalId(request.nationalId())
+    );
+
+    verifyNoInteractions(feeService);
+}
 
     
 }

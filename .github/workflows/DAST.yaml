@@ -1,0 +1,78 @@
+name: DAST Security Scanning
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  dast-scan:
+    name: OWASP ZAP DAST Scan
+    runs-on: ubuntu-latest
+
+    steps:
+      # Step 1: Checkout Code
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      # Step 2: Start WebGoat on Port 8888
+      - name: Start WebGoat Container
+        run: |
+          docker run -d --name webgoat -p 8888:8080 webgoat/webgoat:latest
+
+      # Step 3: Wait until WebGoat responds
+      - name: Wait for WebGoat Readiness
+        run: |
+          echo "Waiting for WebGoat to boot up on port 8888..."
+          timeout 120s bash -c 'until curl -s http://localhost:8888/WebGoat/login > /dev/null; do sleep 5; done'
+          echo "WebGoat is live on http://localhost:8888 !"
+
+      # Step 4: Prepare Workspace Permissions
+      - name: Prepare Workspace Permissions
+        run: |
+          sudo chmod -R 777 ${{ github.workspace }}
+
+# Step 5: Run OWASP ZAP Baseline Scan (Generating XML Report)
+      - name: Run OWASP ZAP Baseline Scan (Direct Docker)
+        run: |
+          docker run --rm --network="host" \
+            -v ${{ github.workspace }}:/zap/wrk/:rw \
+            ghcr.io/zaproxy/zaproxy:stable \
+            zap-baseline.py -t http://localhost:8888/WebGoat/login \
+            -r zap_report.html -x zap_report.xml || true
+          
+          sudo chmod -R 777 ${{ github.workspace }}
+
+      # Step 6: Save ZAP Reports as Artifacts
+      - name: Upload ZAP Scan Artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: zap-dast-report
+          path: |
+            zap_report.html
+            zap_report.xml
+
+      # Step 7: Upload XML Findings to DefectDojo
+      - name: Upload DAST Results to DefectDojo
+        if: always()
+        run: |
+          if [ -f zap_report.xml ]; then
+            echo "Uploading zap_report.xml to DefectDojo..."
+            RESPONSE=$(curl -s -w "\nHTTP_STATUS:%{http_code}" -X POST "${{ secrets.DEFECTDOJO_URL }}/api/v2/import-scan/" \
+              -H "Authorization: Token ${{ secrets.DEFECTDOJO_TOKEN }}" \
+              -H "localtunnel-skip-warning: true" \
+              -F "engagement=${{ secrets.DEFECTDOJO_ENGAGEMENT_ID }}" \
+              -F "scan_type=ZAP Scan" \
+              -F "minimum_severity=Info" \
+              -F "active=true" \
+              -F "verified=true" \
+              -F "close_old_findings=true" \
+              -F "file=@zap_report.xml")
+            
+            echo "DefectDojo Response:"
+            echo "$RESPONSE"
+          else
+            echo "zap_report.xml not found."
+          fi

@@ -149,13 +149,6 @@ class FeeRepositoryTest {
     }
 
     @Test 
-    void testFindByIdForUpdate(){
-        Fee savedFee=feeRepository.findByStudentId(studentId).get(0);
-        Fee result=feeRepository.findByIdForUpdate(savedFee.getId()).orElseThrow();
-        assertEquals(savedFee.getId(),result.getId());
-    }
-
-    @Test 
     void testFindInstitutionCollections_Outstanding(){
         List<Fee> result=feeRepository.findInstitutionCollections(institutionId, FeeStatus.OUTSTANDING, null, null);
         assertEquals(1, result.size());

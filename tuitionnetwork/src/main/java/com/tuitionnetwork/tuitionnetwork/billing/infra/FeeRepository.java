@@ -6,14 +6,11 @@ import com.tuitionnetwork.tuitionnetwork.billing.domain.Fee;
 import com.tuitionnetwork.tuitionnetwork.billing.domain.FeeStatus;
 import com.tuitionnetwork.tuitionnetwork.billing.domain.FeeType;
 
-import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
-import java.util.Optional;
 import java.util.UUID;
 
 
@@ -69,18 +66,6 @@ public interface FeeRepository extends JpaRepository<Fee,UUID> {
             List<Fee> findPayableFeesByStudentIds(
                 @Param("studentIds") List<UUID> studentIds
             );
-
-            /*lock a fee while processing a payment */
-            @Lock(LockModeType.PESSIMISTIC_WRITE)
-                @Query("""
-                    SELECT f
-                    FROM Fee f
-                    WHERE f.id=:feeId   
-                    """)
-                    Optional<Fee> findByIdForUpdate(
-                        @Param("feeId") UUID feeId
-                    );
-
 
             /*get all fees for a batch of students (balance aggregation) */
             /*gurdian has more than one child so use it insted of individual student queries */

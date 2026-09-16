@@ -6,6 +6,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.UUID;
 import java.math.BigDecimal;
+import java.util.List;
+
 
 
 
@@ -29,10 +31,19 @@ public class BillingService{
         return feeService.getOutstandingAmount(feeId);
      }
 
-     /*get payable fees and lock it at payment processing */
-     public Fee getPayableFeeForUpdate(UUID feeId){
-        return feeService.getPayableFeeForUpdate(feeId);
+     /*settle a fee */
+     public Fee settle(UUID feeId,BigDecimal amount){
+        return feeService.settle(feeId,amount);
      }
+
+     /*find multiple fees by id */
+     @Transactional (readOnly = true)
+     public List<Fee> findAllById(List<UUID> feeIds){
+        return feeService.findAllById(feeIds);
+     }
+
+
+ 
 
 
     

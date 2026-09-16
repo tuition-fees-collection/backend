@@ -17,6 +17,7 @@ import java.util.Optional;
 import java.util.UUID;
 import java.math.BigDecimal;
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -311,6 +312,70 @@ void getFeesForStudentAndInstitution_ReturnsFees() {
                                assertEquals( "Fee status is required", exception.getMessage());
                                 verifyNoInteractions(feeRepository);
              }
+
+             @Test
+             void settle_PartialPayment_UpdatesAndSavesFee() {
+                          when(feeRepository.findById(feeId)).thenReturn(Optional.of(fee));
+                          when(feeRepository.save(fee)).thenReturn(fee);
+                          Fee result = feeService.settle(feeId,new BigDecimal("3000.00"));
+                          assertSame(fee, result);
+                          assertEquals(new BigDecimal("3000.00"),result.getAmountPaid());
+                          assertEquals(new BigDecimal("7000.00"),result.getOutstandingAmount());
+                          assertEquals(FeeStatus.PARTIALLY_PAID, result.getStatus());
+                          verify(feeRepository).findById(feeId);
+                          verify(feeRepository).save(fee);
+                        }
+             @Test
+             void settle_FullPayment_SettlesAndSavesFee() {
+                          when(feeRepository.findById(feeId)).thenReturn(Optional.of(fee));
+                          when(feeRepository.save(fee)).thenReturn(fee);
+                          Fee result = feeService.settle(feeId,new BigDecimal("10000.00"));
+                          assertEquals(new BigDecimal("10000.00"),result.getAmountPaid());
+                          assertEquals(BigDecimal.ZERO.setScale(2),result.getOutstandingAmount());
+                          assertEquals(FeeStatus.SETTLED, result.getStatus());
+                          verify(feeRepository).findById(feeId);
+                          verify(feeRepository).save(fee);
+                        }
+
+             @Test
+             void settle_WhenAmountExceedsOutstanding_DoesNotSaveFee() {
+                          when(feeRepository.findById(feeId)).thenReturn(Optional.of(fee));
+                          assertThrows(IllegalArgumentException.class, ()->
+                        feeService.settle(feeId, new BigDecimal("12000.00"))
+                    );
+                          verify(feeRepository).findById(feeId);
+                          verify(feeRepository,never()).save(any(Fee.class));
+                        }
+
+             @Test
+             void findAllById_ReturnsFees() {
+                          UUID secondStudentId=UUID.randomUUID();
+                          Fee secondfee=new Fee(
+                            secondStudentId,
+                            institutionId,FeeType.ACTIVITIES,
+                            "2026-2027",
+                            "EGP",
+                            new BigDecimal("2000.00"),
+                            null
+                        );
+                        List<UUID> feeIds=List.of(UUID.randomUUID(), UUID.randomUUID());
+                        List<Fee> expected=List.of(fee, secondfee);
+                         when(feeRepository.findAllById(feeIds)).thenReturn(expected);
+                         List<Fee> result =feeService.findAllById(feeIds);
+                         assertEquals(expected, result);
+                          verify(feeRepository).findAllById(feeIds);
+                          
+                        }
+            
+             @Test
+             void findAllById_WhenIdsEmpty_ReturnsEmptyList() {
+                      List<Fee> result =feeService.findAllById(List.of());
+                      assertTrue(result.isEmpty());
+                     verifyNoInteractions(feeRepository);
+                    }
+
+
+
 
 
 

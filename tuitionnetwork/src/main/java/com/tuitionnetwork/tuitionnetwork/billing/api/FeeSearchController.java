@@ -16,6 +16,7 @@ import com.tuitionnetwork.tuitionnetwork.identity.domain.NationalId;
 import com.tuitionnetwork.tuitionnetwork.identity.service.GuardianSearchScope;
 import com.tuitionnetwork.tuitionnetwork.identity.service.IdentityAccessService;
 import com.tuitionnetwork.tuitionnetwork.identity.service.IdentityQueryService;
+import com.tuitionnetwork.tuitionnetwork.identity.service.GuardianNotFoundException;
 
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -48,8 +49,12 @@ public class FeeSearchController{
     ){
         identityAccessService.requireBankOfficer();
         NationalId nationalId=new NationalId(request.nationalId());
+        try{
         GuardianSearchScope guardianSearchScope=identityQueryService.resolveGuardianSearchScope(nationalId);
         return buildCategorizedFees(guardianSearchScope.studentIds());
+        }catch(GuardianNotFoundException ex){
+            return List.of();
+        }
     }
 
     /*logged in gurdian gets fees for their students */

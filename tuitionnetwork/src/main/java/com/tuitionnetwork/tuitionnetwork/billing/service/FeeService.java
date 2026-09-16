@@ -48,14 +48,6 @@ public class FeeService{
 
     }
 
-    /*get payable fees and lock it at payment processing */
-    public Fee getPayableFeeForUpdate(UUID feeId){
-        Fee fee=feeRepository.findByIdForUpdate(feeId)
-        .orElseThrow(() -> new IllegalArgumentException("Fee not found: "+feeId));
-        ensureFee(fee);
-
-        return fee;
-    }
 
     /*get all fees for a specific student */
     public List<Fee> getFeesForStudent(UUID studentId){
@@ -94,6 +86,24 @@ public class FeeService{
                 return fees;
    
 }
+          /*settle a fee through the billing domain*/
+          public Fee settle(UUID feeId,BigDecimal amount){
+            Fee fee=getPayableFee(feeId);
+            fee.applyPayment(amount);
+            return feeRepository.save(fee);
+          }
+
+          
+          /*get multiple fees by their ids*/
+          @Transactional(readOnly = true)
+          public List<Fee> findAllById(List<UUID> feeIds){
+            if(feeIds==null||feeIds.isEmpty()){
+                return List.of();
+            }
+            return feeRepository.findAllById(feeIds);
+          }
+
+    
 
     /*validate payment amount before processing */
     public void validatePaymentAmount(UUID feeId,BigDecimal paymentAmount){

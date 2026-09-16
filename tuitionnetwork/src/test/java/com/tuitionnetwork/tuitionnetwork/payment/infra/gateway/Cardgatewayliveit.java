@@ -22,7 +22,6 @@ import com.tuitionnetwork.tuitionnetwork.payments.infra.ports.CardGatewayAdapter
 import com.tuitionnetwork.tuitionnetwork.payments.infra.ports.bankmock.BankMockApiException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.springframework.http.HttpStatusCode;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.web.client.RestClient;
 import java.time.Duration;
@@ -224,7 +223,7 @@ class CardGatewayLiveIT {
                 .baseUrl(baseUrl)
                 .requestFactory(factory)
                 .defaultHeader("X-API-Key", API_KEY)
-                .defaultStatusHandler(HttpStatusCode::isError, (request, response) -> {
+                .defaultStatusHandler(statusCode -> statusCode.isError(), (request, response) -> {
                     JsonNode body;
                     try {
                         body = objectMapper.readTree(response.getBody());

@@ -20,13 +20,13 @@ public interface CreatePaymentUseCase {
             if (feeLines == null || feeLines.isEmpty()) {
                 throw new IllegalArgumentException("A payment must settle at least one fee line");
             }
-            feeLines = List.copyOf(feeLines);
+            feeLines = List.copyOf(feeLines); //fixed list
         }
-        public BigDecimal totalAmount() {
-            return feeLines.stream()
-                    .map(FeeLine::amountToApply)
-                    .reduce(BigDecimal.ZERO, BigDecimal::add);
-        }
+       public BigDecimal totalAmount() {
+                return feeLines.stream()
+            .map(line -> line.amountToApply())
+            .reduce(BigDecimal.ZERO, (a, b) -> a.add(b));
+}
     }
 
     record FeeLine(UUID feeId, BigDecimal amountToApply) {

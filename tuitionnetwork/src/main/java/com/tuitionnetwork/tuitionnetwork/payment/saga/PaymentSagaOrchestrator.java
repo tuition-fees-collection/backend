@@ -130,12 +130,12 @@ public class PaymentSagaOrchestrator implements ExecutePaymentSagaUseCase {
 
         throw new IllegalStateException("Unhandled gateway outcome: " + result.outcome());
     }
-    private boolean sourceBelongsToCustomer(ExecutePaymentCommand command) {
-        return backoffice.lookupCustomer(command.nationalId())
-                .filter( Backofficegatewayport.CustomerProfile::isActive)
-                .map(profile -> profile.holds(command.sourceId()))
-                .orElse(false);
-    }
+  private boolean sourceBelongsToCustomer(ExecutePaymentCommand command) {
+    return backoffice.lookupCustomer(command.nationalId())
+            .filter(profile -> profile.isActive())
+            .map(profile -> profile.holds(command.sourceId()))
+            .orElse(false);
+}
 
     private Payment load(UUID paymentId) {
         Payment payment = payments.findById(paymentId)
@@ -158,11 +158,12 @@ public class PaymentSagaOrchestrator implements ExecutePaymentSagaUseCase {
     }
 
     private PaymentResultView view(Payment payment, boolean requires3ds, String message) {
-        String receiptReference = payment.getStatus() == PaymentStatus.SUCCESSFUL
-                ? receipts.findByPaymentId(payment.getId())
-                        .map(ReceiptPort.IssuedReceipt::referenceNumber).orElse(null)
-                : null;
-        return new PaymentResultView(payment.getId(), payment.getStatus(), requires3ds,
-                payment.getMaskedCardNumber(), receiptReference, message);
-    }
+    String receiptReference = payment.getStatus() == PaymentStatus.SUCCESSFUL
+            ? receipts.findByPaymentId(payment.getId())
+                    .map(receipt -> receipt.referenceNumber())
+                    .orElse(null)
+            : null;
+    return new PaymentResultView(payment.getId(), payment.getStatus(), requires3ds,
+            payment.getMaskedCardNumber(), receiptReference, message);
+}
 }

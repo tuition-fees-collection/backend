@@ -9,15 +9,12 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
 import tools.jackson.databind.json.JsonMapper;
-
 import com.tuitionnetwork.tuitionnetwork.identity.service.IdentityAccessService;
 import com.tuitionnetwork.tuitionnetwork.identity.service.PaymentCaller;
 import com.tuitionnetwork.tuitionnetwork.payment.domain.OutboxEvent;
@@ -77,14 +74,14 @@ public class PaymentService implements CreatePaymentUseCase {
             return view(existing.get(), true);
         }
 
-        List<UUID> feeIds = command.feeLines().stream().map(FeeLine::feeId).toList();
+        List<UUID> feeIds = command.feeLines().stream().map(line -> line.feeId()).toList();
         if (new HashSet<>(feeIds).size() != feeIds.size()) {
             throw new Paymentvalidationexception("DUPLICATE_FEE_LINE",
                     "The same fee appears more than once in this payment");
         }
 
         Map<UUID, BillingPort.PayableFee> fees = billing.loadPayable(feeIds).stream()
-                .collect(Collectors.toMap(BillingPort.PayableFee::feeId, Function.identity()));
+                .collect(Collectors.toMap(fee -> fee.feeId(), Function.identity()));
 
         for (UUID feeId : feeIds) {
             BillingPort.PayableFee fee = fees.get(feeId);

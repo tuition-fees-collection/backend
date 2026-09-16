@@ -5,5 +5,6 @@ import com.tuitionnetwork.tuitionnetwork.payment.port.in.ExecutePaymentSagaUseCa
 import com.tuitionnetwork.tuitionnetwork.payment.port.portout.CardGatewayPort;
 public interface PaymentMethodHandler {
     PaymentMethod handles();
+    //which payment and hwo to we want to excute it
     CardGatewayPort.Result charge(Payment payment, ExecutePaymentCommand command);
 }

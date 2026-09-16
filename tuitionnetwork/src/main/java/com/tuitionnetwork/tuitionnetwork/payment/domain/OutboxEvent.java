@@ -21,10 +21,10 @@ public class OutboxEvent {
     @GeneratedValue 
     private UUID id;
     @Column (name ="aggregate_id", nullable = false)
-    private UUID aggregateId;
+    private UUID aggregateId; //payment id
     @Column(name="event_type", nullable = false, length=50)
     private String eventType;
-    @Column ( nullable = false, columnDefinition = "TEXT")
+    @Column ( nullable = false, columnDefinition = "TEXT") //apyemtn sicss created failed
     private String payload;
    @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)

@@ -4,7 +4,7 @@ import java.util.List;
 import java.util.UUID;
 public interface BillingPort {
     List<PayableFee> loadPayable(List<UUID> feeIds);
-    void settle(UUID paymentId, List<FeeSettlement> settlements);
+    void settle(UUID paymentId, List<FeeSettlement> settlements); //Give me the fees with these IDs, so I can check whether they can be paid.
     record PayableFee(
             UUID feeId,
             UUID studentId,

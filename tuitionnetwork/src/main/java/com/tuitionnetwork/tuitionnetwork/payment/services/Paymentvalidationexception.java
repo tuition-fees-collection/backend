@@ -9,3 +9,5 @@ public class Paymentvalidationexception extends RuntimeException {
         return code;
     }
 }
+//code    → INVALID_AMOUNT
+//message → Payment amount exceeds outstanding amount

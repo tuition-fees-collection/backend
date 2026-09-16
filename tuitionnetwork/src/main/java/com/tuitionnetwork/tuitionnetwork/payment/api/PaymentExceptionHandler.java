@@ -7,6 +7,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingRequestHeaderException;
 import org.springframework.security.access.AccessDeniedException;
@@ -16,7 +17,7 @@ import org.springframework.web.servlet.resource.NoResourceFoundException;
 import com.tuitionnetwork.tuitionnetwork.payment.domain.IllegalPaymentTransitionException;
 import com.tuitionnetwork.tuitionnetwork.payment.services.PaymentAccessDeniedException;
 import com.tuitionnetwork.tuitionnetwork.payment.services.Paymentvalidationexception;
-@RestControllerAdvice
+@RestControllerAdvice(basePackages = "com.tuitionnetwork.tuitionnetwork.payment")
 public class PaymentExceptionHandler {
     private static final Logger log = LoggerFactory.getLogger(PaymentExceptionHandler.class);
     //unauthorized access
@@ -24,7 +25,14 @@ public class PaymentExceptionHandler {
     ResponseEntity<ApiError> forbidden(AccessDeniedException e) {
         return respond(HttpStatus.FORBIDDEN, "ACCESS_DENIED", "Access denied");
     }
-//url typo wrong
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    ResponseEntity<ApiError> unreadableBody(HttpMessageNotReadableException e) {
+        log.warn("Unreadable request body: {}", e.getMessage());
+        return respond(HttpStatus.BAD_REQUEST, "MALFORMED_JSON",
+                "The request body could not be read");
+    }
+
     @ExceptionHandler(NoResourceFoundException.class)
     ResponseEntity<ApiError> missingRoute(NoResourceFoundException e) {
         return respond(HttpStatus.NOT_FOUND, "NOT_FOUND", "Not found");

@@ -51,9 +51,9 @@ public class PaymentQueryService implements GetPaymentUseCase {
 
         List<PaymentAllocation> rows = allocations.findByPaymentId(paymentId);
         Map<UUID, BillingPort.PayableFee> fees = billing
-                .loadPayable(rows.stream().map(PaymentAllocation::getFeeId).toList())
+                .loadPayable(rows.stream().map(row -> row.getFeeId()).toList())
                 .stream()
-                .collect(Collectors.toMap(BillingPort.PayableFee::feeId, Function.identity()));
+                .collect(Collectors.toMap(fee -> fee.feeId(), Function.identity()));
 
         List<AllocationView> allocationViews = rows.stream()
                 .map(row -> {
@@ -67,7 +67,7 @@ public class PaymentQueryService implements GetPaymentUseCase {
                 .toList();
 
         String receiptReference = receipts.findByPaymentId(paymentId)
-                .map(ReceiptPort.IssuedReceipt::referenceNumber)
+                .map(receipt -> receipt.referenceNumber())
                 .orElse(null);
 
         return new PaymentView(
@@ -126,7 +126,7 @@ public class PaymentQueryService implements GetPaymentUseCase {
             return null;
         }
         return receipts.findByPaymentId(payment.getId())
-                .map(ReceiptPort.IssuedReceipt::referenceNumber)
+                .map(receipt -> receipt.referenceNumber())
                 .orElse(null);
     }
 }

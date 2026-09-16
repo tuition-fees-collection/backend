@@ -57,25 +57,25 @@ public class PaymentSettlement {
     }
     @Transactional
     public Payment settleSuccess(Payment payment, CardGatewayPort.Result result) {
-        List<PaymentAllocation> rows = allocations.findByPaymentId(payment.getId());
-        Map<UUID, BillingPort.PayableFee> current = billing
-                .loadPayable(rows.stream().map(PaymentAllocation::getFeeId).toList())
-                .stream()
-                .collect(Collectors.toMap(BillingPort.PayableFee::feeId, Function.identity()));
+    List<PaymentAllocation> rows = allocations.findByPaymentId(payment.getId());
+    Map<UUID, BillingPort.PayableFee> current = billing
+            .loadPayable(rows.stream().map(row -> row.getFeeId()).toList())
+            .stream()
+            .collect(Collectors.toMap(fee -> fee.feeId(), Function.identity()));
 
-        PaymentSagaStep settle = saga.begin(payment.getId(), PaymentSagaStepType.SETTLE_FEES);
-        billing.settle(payment.getId(), rows.stream()
-                .map(row -> {
-                    BillingPort.PayableFee fee = current.get(row.getFeeId());
-                    if (fee == null) {
-                        throw new IllegalStateException("Fee " + row.getFeeId()
-                                + " is no longer payable at settlement time");
-                    }
-                    return new BillingPort.FeeSettlement(
-                            row.getFeeId(), row.getAmountApplied(), fee.version());
-                })
-                .toList());
-        saga.succeed(settle);
+    PaymentSagaStep settle = saga.begin(payment.getId(), PaymentSagaStepType.SETTLE_FEES);
+    billing.settle(payment.getId(), rows.stream()
+            .map(row -> {
+                BillingPort.PayableFee fee = current.get(row.getFeeId());
+                if (fee == null) {
+                    throw new IllegalStateException("Fee " + row.getFeeId()
+                            + " is no longer payable at settlement time");
+                }
+                return new BillingPort.FeeSettlement(
+                        row.getFeeId(), row.getAmountApplied(), fee.version());
+            })
+            .toList());
+    saga.succeed(settle);
 
         payment.markSuccessful(
                 result.gatewayPaymentId(),

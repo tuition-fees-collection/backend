@@ -189,7 +189,7 @@ class FeeRepositoryTest {
 
      @Test 
     void testFindInstitutionCollections_ByNonMatchingFeeType(){
-        List<Fee> result=feeRepository.findInstitutionCollections(institutionId, FeeStatus.PARTIALLY_PAID, FeeType.BUS, null);
+        List<Fee> result=feeRepository.findInstitutionCollections(institutionId, FeeStatus.PARTIALLY_PAID, FeeType.TRANSPORTATION, null);
         assertTrue(result.isEmpty());
     }
 
@@ -215,7 +215,7 @@ class FeeRepositoryTest {
                Fee otherInstitutionFee = new Fee(
                       otherStudentId,
                       otherInstitutionId,
-                      FeeType.BUS,
+                      FeeType.TRANSPORTATION,
             "2026-2027",
             "EGP",
                       new BigDecimal("4000.00"),

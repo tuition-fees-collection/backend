@@ -66,7 +66,7 @@ public class BillingControllerTest {
         Fee busFee = new Fee(
                 studentId,
                 institutionId,
-                FeeType.BUS,
+                FeeType.TRANSPORTATION,
                 "2026-2027",
                 "EGP",
                 new BigDecimal("3000.00"),

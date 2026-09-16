@@ -211,7 +211,7 @@ import static org.junit.jupiter.api.Assertions.*;
               Fee fee = createFee(
                     studentId,
                     institutionId,
-                    FeeType.BUS,
+                    FeeType.TRANSPORTATION,
                 new BigDecimal("3000.00")
               );
 

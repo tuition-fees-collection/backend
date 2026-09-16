@@ -60,7 +60,7 @@ class DailyCollectionReportServiceTest {
                 new DailyCollectionRecord(
                         payment1,
                         student1,
-                        FeeType.BUS,
+                        FeeType.TRANSPORTATION,
                         new BigDecimal("2000.00"),
                         PaymentMethod.CREDIT_CARD,
                         Instant.parse("2026-09-16T08:00:00Z"),
@@ -115,7 +115,7 @@ class DailyCollectionReportServiceTest {
                 new BigDecimal("2000.00")
                         .compareTo(
                                 result.amountByFeeType()
-                                        .get(FeeType.BUS)
+                                        .get(FeeType.TRANSPORTATION)
                         )
         );
 

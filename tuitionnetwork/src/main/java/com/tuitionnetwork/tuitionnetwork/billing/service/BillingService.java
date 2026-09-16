@@ -31,9 +31,10 @@ public class BillingService{
         return feeService.getOutstandingAmount(feeId);
      }
 
-     /*settle a fee */
-     public Fee settle(UUID feeId,BigDecimal amount){
-        return feeService.settle(feeId,amount);
+     /*settle a fee, rejecting the call if the fee has moved since
+       expectedVersion was read (stale caller or lost race) */
+     public Fee settle(UUID feeId,BigDecimal amount,int expectedVersion){
+        return feeService.settle(feeId,amount,expectedVersion);
      }
 
      /*find multiple fees by id */

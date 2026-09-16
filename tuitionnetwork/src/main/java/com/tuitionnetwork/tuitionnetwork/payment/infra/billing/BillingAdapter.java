@@ -1,59 +1,39 @@
 package com.tuitionnetwork.tuitionnetwork.payment.infra.billing;
-import java.math.BigDecimal;
+
 import java.util.List;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.OptimisticLockingFailureException;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
+import com.tuitionnetwork.tuitionnetwork.billing.domain.Fee;
+import com.tuitionnetwork.tuitionnetwork.billing.service.BillingService;
+import com.tuitionnetwork.tuitionnetwork.billing.service.Concurrentsettlementexception;
 import com.tuitionnetwork.tuitionnetwork.payment.port.portout.BillingPort;
+
 @Component
 public class BillingAdapter implements BillingPort {
+
     private static final Logger log = LoggerFactory.getLogger(BillingAdapter.class);
-    private static final String SELECT_FEES = """
-            SELECT id, student_id, institution_id, fee_type, collection_period,
-                   amount, amount_paid, status, version
-            FROM billing.fee
-            WHERE id = ANY (?)
-            """;
-    private static final String SETTLE = """
-            UPDATE billing.fee
-            SET amount_paid = amount_paid + ?,
-                status = CASE
-                    WHEN amount_paid + ? >= amount THEN 'SETTLED'
-                    ELSE 'PARTIALLY_PAID'
-                END,
-                version = version + 1
-            WHERE id = ? AND version = ?
-            """;
 
-    private static final RowMapper<PayableFee> MAPPER = (rs, i) -> new PayableFee(
-            rs.getObject("id", UUID.class),
-            rs.getObject("student_id", UUID.class),
-            rs.getObject("institution_id", UUID.class),
-            rs.getString("fee_type"),
-            rs.getString("collection_period"),
-            rs.getBigDecimal("amount"),
-            rs.getBigDecimal("amount_paid"),
-            rs.getString("status"),
-            rs.getInt("version"));
+    private final BillingService billing;
 
-    private final JdbcTemplate jdbc;
-
-    public BillingAdapter(JdbcTemplate jdbc) {
-        this.jdbc = jdbc;
+    public BillingAdapter(BillingService billing) {
+        this.billing = billing;
     }
+
     @Override
     @Transactional(readOnly = true)
     public List<PayableFee> loadPayable(List<UUID> feeIds) {
         if (feeIds == null || feeIds.isEmpty()) {
             return List.of();
         }
-        return jdbc.query(SELECT_FEES, MAPPER, (Object) feeIds.toArray(new UUID[0]));
+        return billing.findAllById(feeIds).stream()
+                .map(BillingAdapter::toPayableFee)
+                .toList();
     }
+
     @Override
     @Transactional
     public void settle(UUID paymentId, List<FeeSettlement> settlements) {
@@ -61,23 +41,35 @@ public class BillingAdapter implements BillingPort {
             return;
         }
 
-        for (FeeSettlement settlement : settlements) {
-            BigDecimal applied = settlement.amountApplied();
-
-            int rows = jdbc.update(SETTLE,
-                    applied,
-                    applied,
-                    settlement.feeId(),
-                    settlement.expectedVersion());
-
-            if (rows == 0) {
-                log.warn("Fee {} changed under payment {} - expected version {}",
-                        settlement.feeId(), paymentId, settlement.expectedVersion());
-                throw new OptimisticLockingFailureException(
-                        "Fee " + settlement.feeId() + " was modified by another payment");
+        try {
+            for (FeeSettlement settlement : settlements) {
+                billing.settle(settlement.feeId(), settlement.amountApplied(), settlement.expectedVersion());
             }
+            log.info("Payment {} settled {} fee line(s)", paymentId, settlements.size());
+        } catch (Concurrentsettlementexception e) {
+            log.warn("Concurrency conflict during settlement for payment {}: {}", paymentId, e.getMessage());
+            throw e;
+        } catch (OptimisticLockingFailureException e) {
+            // Safety net: a race that slips past the explicit version check
+            // (e.g. two threads both pass it before either flushes) still
+            // surfaces as a plain Hibernate optimistic-lock failure here.
+            // Normalize it to the same message callers rely on.
+            log.warn("Concurrency conflict during settlement for payment {}: {}", paymentId, e.getMessage());
+            throw new Concurrentsettlementexception(
+                "Fee settlement for payment " + paymentId + " was modified by another payment", e);
         }
+    }
 
-        log.info("Payment {} settled {} fee line(s)", paymentId, settlements.size());
+    private static PayableFee toPayableFee(Fee fee) {
+        return new PayableFee(
+                fee.getId(),
+                fee.getStudentId(),
+                fee.getInstitutionId(),
+                fee.getFeeType() == null ? null : fee.getFeeType().name(),
+                fee.getCollectionPeriod(),
+                fee.getAmount(),
+                fee.getAmountPaid(),
+                fee.getStatus() == null ? null : fee.getStatus().name(),
+                fee.getVersion() == null ? 0 : fee.getVersion());
     }
 }

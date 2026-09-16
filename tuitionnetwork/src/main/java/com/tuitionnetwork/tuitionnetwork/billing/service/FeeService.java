@@ -7,6 +7,7 @@ import com.tuitionnetwork.tuitionnetwork.billing.infra.FeeRepository;
 import org.springframework.transaction.annotation.Transactional;
 import com.tuitionnetwork.tuitionnetwork.billing.domain.FeeStatus;
 import com.tuitionnetwork.tuitionnetwork.billing.domain.FeeType;
+import org.springframework.dao.OptimisticLockingFailureException;
 
 import java.util.List;
 import java.util.UUID;
@@ -86,11 +87,21 @@ public class FeeService{
                 return fees;
    
 }
-          /*settle a fee through the billing domain*/
-          public Fee settle(UUID feeId,BigDecimal amount){
+          public Fee settle(UUID feeId,BigDecimal amount,int expectedVersion){
             Fee fee=getPayableFee(feeId);
+            int currentVersion=fee.getVersion()==null?0:fee.getVersion();
+            if(currentVersion!=expectedVersion){
+                throw new Concurrentsettlementexception(
+                    "Fee "+feeId+" was modified by another payment (expected version "
+                        +expectedVersion+" but found "+currentVersion+")");
+            }
             fee.applyPayment(amount);
-            return feeRepository.save(fee);
+            try{
+                return feeRepository.saveAndFlush(fee);
+            }catch(OptimisticLockingFailureException e){
+                throw new Concurrentsettlementexception(
+                    "Fee "+feeId+" was modified by another payment", e);
+            }
           }
 
           

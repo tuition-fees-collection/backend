@@ -83,19 +83,21 @@ class BillingServiceTest {
     }
 
     @Test
-    /* settle should delegate fee settlement to fee service */
+    /* settle should delegate fee settlement (with expected version) to fee service */
     void testSettle_Success() {
 
         BigDecimal paymentAmount =
             new BigDecimal("3000.00");
+        int expectedVersion = 0;
 
-        when(feeService.settle(feeId, paymentAmount))
+        when(feeService.settle(feeId, paymentAmount, expectedVersion))
             .thenReturn(fee);
 
         Fee result =
             billingService.settle(
                 feeId,
-                paymentAmount
+                paymentAmount,
+                expectedVersion
             );
 
         assertNotNull(result);
@@ -103,7 +105,8 @@ class BillingServiceTest {
 
         verify(feeService).settle(
             feeId,
-            paymentAmount
+            paymentAmount,
+            expectedVersion
         );
     }
 

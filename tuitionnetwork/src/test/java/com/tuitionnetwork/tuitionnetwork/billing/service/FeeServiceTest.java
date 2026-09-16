@@ -314,37 +314,55 @@ void getFeesForStudentAndInstitution_ReturnsFees() {
              }
 
              @Test
+             /* settle with a matching version applies a partial payment and flushes the save */
              void settle_PartialPayment_UpdatesAndSavesFee() {
                           when(feeRepository.findById(feeId)).thenReturn(Optional.of(fee));
-                          when(feeRepository.save(fee)).thenReturn(fee);
-                          Fee result = feeService.settle(feeId,new BigDecimal("3000.00"));
+                          when(feeRepository.saveAndFlush(fee)).thenReturn(fee);
+                          Fee result = feeService.settle(feeId,new BigDecimal("3000.00"),0);
                           assertSame(fee, result);
                           assertEquals(new BigDecimal("3000.00"),result.getAmountPaid());
                           assertEquals(new BigDecimal("7000.00"),result.getOutstandingAmount());
                           assertEquals(FeeStatus.PARTIALLY_PAID, result.getStatus());
                           verify(feeRepository).findById(feeId);
-                          verify(feeRepository).save(fee);
+                          verify(feeRepository).saveAndFlush(fee);
                         }
              @Test
+             /* settle with a matching version can fully settle the fee */
              void settle_FullPayment_SettlesAndSavesFee() {
                           when(feeRepository.findById(feeId)).thenReturn(Optional.of(fee));
-                          when(feeRepository.save(fee)).thenReturn(fee);
-                          Fee result = feeService.settle(feeId,new BigDecimal("10000.00"));
+                          when(feeRepository.saveAndFlush(fee)).thenReturn(fee);
+                          Fee result = feeService.settle(feeId,new BigDecimal("10000.00"),0);
                           assertEquals(new BigDecimal("10000.00"),result.getAmountPaid());
                           assertEquals(BigDecimal.ZERO.setScale(2),result.getOutstandingAmount());
                           assertEquals(FeeStatus.SETTLED, result.getStatus());
                           verify(feeRepository).findById(feeId);
-                          verify(feeRepository).save(fee);
+                          verify(feeRepository).saveAndFlush(fee);
                         }
 
              @Test
+             /* settle should reject an amount above outstanding before ever saving */
              void settle_WhenAmountExceedsOutstanding_DoesNotSaveFee() {
                           when(feeRepository.findById(feeId)).thenReturn(Optional.of(fee));
                           assertThrows(IllegalArgumentException.class, ()->
-                        feeService.settle(feeId, new BigDecimal("12000.00"))
+                        feeService.settle(feeId, new BigDecimal("12000.00"),0)
                     );
                           verify(feeRepository).findById(feeId);
-                          verify(feeRepository,never()).save(any(Fee.class));
+                          verify(feeRepository,never()).saveAndFlush(any(Fee.class));
+                        }
+
+             @Test
+             /* settle should reject a stale expected version without touching the save path */
+             void settle_WhenVersionStale_ThrowsAndDoesNotSave() {
+                          when(feeRepository.findById(feeId)).thenReturn(Optional.of(fee));
+
+                         Concurrentsettlementexception exception = assertThrows(
+                              Concurrentsettlementexception.class, () ->
+                                  feeService.settle(feeId, new BigDecimal("3000.00"), 5)
+                          );
+
+                          assertTrue(exception.getMessage().contains("modified by another payment"));
+                          verify(feeRepository).findById(feeId);
+                          verify(feeRepository, never()).saveAndFlush(any(Fee.class));
                         }
 
              @Test

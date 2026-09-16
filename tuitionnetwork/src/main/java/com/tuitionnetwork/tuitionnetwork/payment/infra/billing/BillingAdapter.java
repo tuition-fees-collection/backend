@@ -50,10 +50,6 @@ public class BillingAdapter implements BillingPort {
             log.warn("Concurrency conflict during settlement for payment {}: {}", paymentId, e.getMessage());
             throw e;
         } catch (OptimisticLockingFailureException e) {
-            // Safety net: a race that slips past the explicit version check
-            // (e.g. two threads both pass it before either flushes) still
-            // surfaces as a plain Hibernate optimistic-lock failure here.
-            // Normalize it to the same message callers rely on.
             log.warn("Concurrency conflict during settlement for payment {}: {}", paymentId, e.getMessage());
             throw new Concurrentsettlementexception(
                 "Fee settlement for payment " + paymentId + " was modified by another payment", e);

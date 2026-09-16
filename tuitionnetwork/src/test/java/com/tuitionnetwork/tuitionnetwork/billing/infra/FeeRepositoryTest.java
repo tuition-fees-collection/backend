@@ -85,6 +85,8 @@ class FeeRepositoryTest {
                 null
             );
 
+            
+
             fee1.applyPayment(new BigDecimal("2000.00")); // PARTIAL
             fee3.applyPayment(new BigDecimal("5000.00")); // PAID
 
@@ -100,9 +102,9 @@ class FeeRepositoryTest {
 
     @Test 
     void testFindByStudentIdAndStatus(){
-        List<Fee> result=feeRepository.findByStudentIdAndStatus(studentId,FeeStatus.PARTIAL);
+        List<Fee> result=feeRepository.findByStudentIdAndStatus(studentId,FeeStatus.PARTIALLY_PAID);
         assertEquals(1,result.size());
-        assertEquals(FeeStatus.PARTIAL,result.get(0).getStatus());
+        assertEquals(FeeStatus.PARTIALLY_PAID,result.get(0).getStatus());
         assertEquals(studentId,result.get(0).getStudentId());
     }
 
@@ -116,9 +118,9 @@ class FeeRepositoryTest {
 
     @Test 
     void testFindByInstitutionIdAndStatus(){
-        List<Fee> result=feeRepository.findByInstitutionIdAndStatus(institutionId,FeeStatus.PAID);
+        List<Fee> result=feeRepository.findByInstitutionIdAndStatus(institutionId,FeeStatus.SETTLED);
         assertEquals(1,result.size());
-        assertEquals(FeeStatus.PAID,result.get(0).getStatus());
+        assertEquals(FeeStatus.SETTLED,result.get(0).getStatus());
         assertEquals(institutionId,result.get(0).getInstitutionId());
     }
 
@@ -127,7 +129,7 @@ class FeeRepositoryTest {
         List<Fee> result=feeRepository.findPayableFeeByStudentId(studentId);
         assertEquals(2,result.size());
         assertTrue(result.stream().allMatch(fee->fee.getStudentId().equals(studentId)));
-        assertTrue(result.stream().allMatch(fee->fee.getStatus()==FeeStatus.OUTSTANDING || fee.getStatus()==FeeStatus.PARTIAL));
+        assertTrue(result.stream().allMatch(fee->fee.getStatus()==FeeStatus.OUTSTANDING || fee.getStatus()==FeeStatus.PARTIALLY_PAID));
     }
 
     @Test 
@@ -136,7 +138,7 @@ class FeeRepositoryTest {
             List.of(studentId,otherStudentId));
         assertEquals(2,result.size());
         assertTrue(result.stream().allMatch(fee->fee.getStudentId().equals(studentId) || fee.getStudentId().equals(otherStudentId)));
-        assertTrue(result.stream().allMatch(fee->fee.getStatus()==FeeStatus.OUTSTANDING || fee.getStatus()==FeeStatus.PARTIAL));
+        assertTrue(result.stream().allMatch(fee->fee.getStatus()==FeeStatus.OUTSTANDING || fee.getStatus()==FeeStatus.PARTIALLY_PAID));
     }
 
     @Test 
@@ -152,6 +154,103 @@ class FeeRepositoryTest {
         Fee result=feeRepository.findByIdForUpdate(savedFee.getId()).orElseThrow();
         assertEquals(savedFee.getId(),result.getId());
     }
+
+    @Test 
+    void testFindInstitutionCollections_Outstanding(){
+        List<Fee> result=feeRepository.findInstitutionCollections(institutionId, FeeStatus.OUTSTANDING, null, null);
+        assertEquals(1, result.size());
+        assertEquals(FeeStatus.OUTSTANDING, result.get(0).getStatus());
+        assertEquals(institutionId, result.get(0).getInstitutionId());
+    }
+
+    @Test 
+    void testFindInstitutionCollections_PartiallyPaid(){
+        List<Fee> result=feeRepository.findInstitutionCollections(institutionId, FeeStatus.PARTIALLY_PAID, null, null);
+        assertEquals(1, result.size());
+        assertEquals(FeeStatus.PARTIALLY_PAID, result.get(0).getStatus());
+        assertEquals(institutionId, result.get(0).getInstitutionId());
+    }
+
+    @Test 
+    void testFindInstitutionCollections_Settled(){
+        List<Fee> result=feeRepository.findInstitutionCollections(institutionId, FeeStatus.SETTLED, null, null);
+        assertEquals(1, result.size());
+        assertEquals(FeeStatus.SETTLED, result.get(0).getStatus());
+        assertEquals(institutionId, result.get(0).getInstitutionId());
+    }
+
+    @Test 
+    void testFindInstitutionCollections_ByFeeType(){
+        List<Fee> result=feeRepository.findInstitutionCollections(institutionId, FeeStatus.PARTIALLY_PAID, FeeType.TUITION, null);
+        assertEquals(1, result.size());
+        assertEquals(FeeType.TUITION, result.get(0).getFeeType());
+        assertEquals(FeeStatus.PARTIALLY_PAID, result.get(0).getStatus());
+    }
+
+     @Test 
+    void testFindInstitutionCollections_ByNonMatchingFeeType(){
+        List<Fee> result=feeRepository.findInstitutionCollections(institutionId, FeeStatus.PARTIALLY_PAID, FeeType.BUS, null);
+        assertTrue(result.isEmpty());
+    }
+
+     @Test 
+    void testFindInstitutionCollections_ByCollectionPeriod(){
+        List<Fee> result=feeRepository.findInstitutionCollections(institutionId, FeeStatus.OUTSTANDING, null, "2026-2027");
+        assertEquals(1, result.size());
+        assertEquals("2026-2027", result.get(0).getCollectionPeriod());
+       
+    }
+
+     @Test 
+    void testFindInstitutionCollections_ByNonMatchingPeriod(){
+        List<Fee> result=feeRepository.findInstitutionCollections(institutionId, FeeStatus.OUTSTANDING, null, "2025-2026");
+        assertTrue(result.isEmpty());
+    }
+
+    @Test
+    void testFindInstitutionCollections_DoesNotReturnOtherInstitutionFees() {
+
+               UUID otherInstitutionId = UUID.randomUUID();
+              seedInstitution(otherInstitutionId);
+               Fee otherInstitutionFee = new Fee(
+                      otherStudentId,
+                      otherInstitutionId,
+                      FeeType.BUS,
+            "2026-2027",
+            "EGP",
+                      new BigDecimal("4000.00"),
+             null
+                     );
+
+                feeRepository.saveAndFlush(otherInstitutionFee);
+
+              List<Fee> result = feeRepository.findInstitutionCollections(
+                     institutionId,
+                     FeeStatus.OUTSTANDING,
+             null,
+             null
+                   );
+
+                 assertEquals(1, result.size());
+
+                assertTrue(result.stream().
+                           allMatch(fee ->
+                            fee.getInstitutionId().equals(institutionId))
+                          );
+
+               assertTrue(result.stream().
+                            noneMatch(fee ->
+                            fee.getInstitutionId().equals(otherInstitutionId))
+                          );
+}
+
+
+
+    
+
+
+
+    
 
 
 }

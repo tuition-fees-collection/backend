@@ -4,6 +4,8 @@ package com.tuitionnetwork.tuitionnetwork.billing.infra;
 
 import com.tuitionnetwork.tuitionnetwork.billing.domain.Fee;
 import com.tuitionnetwork.tuitionnetwork.billing.domain.FeeStatus;
+import com.tuitionnetwork.tuitionnetwork.billing.domain.FeeType;
+
 import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
@@ -42,7 +44,7 @@ public interface FeeRepository extends JpaRepository<Fee,UUID> {
             WHERE f.studentId=:studentId
             AND f.status IN(
               com.tuitionnetwork.tuitionnetwork.billing.domain.FeeStatus.OUTSTANDING,
-              com.tuitionnetwork.tuitionnetwork.billing.domain.FeeStatus.PARTIAL
+              com.tuitionnetwork.tuitionnetwork.billing.domain.FeeStatus.PARTIALLY_PAID
             )
             """)
 
@@ -60,7 +62,7 @@ public interface FeeRepository extends JpaRepository<Fee,UUID> {
             Where f.studentId IN :studentIds
             AND f.status IN(
                com.tuitionnetwork.tuitionnetwork.billing.domain.FeeStatus.OUTSTANDING,
-               com.tuitionnetwork.tuitionnetwork.billing.domain.FeeStatus.PARTIAL
+               com.tuitionnetwork.tuitionnetwork.billing.domain.FeeStatus.PARTIALLY_PAID
             )
             """)
 
@@ -86,6 +88,32 @@ public interface FeeRepository extends JpaRepository<Fee,UUID> {
 
             /*get all fees created from a specific CSV upload batch */
             List<Fee> findBySourceBatchId(UUID sourceBatchId);
-            }
+
+            /* get a student's fees belonging to a specific institution */
+            List<Fee> findByStudentIdAndInstitutionId(
+            UUID studentId,
+            UUID institutionId
+            );
+
+
+
+            @Query("""
+                         SELECT f
+                         FROM Fee f
+                         WHERE f.institutionId = :institutionId
+                         AND f.status = :status
+                         AND (:feeType IS NULL OR f.feeType = :feeType)
+                         AND (:collectionPeriod IS NULL OR f.collectionPeriod = :collectionPeriod)
+                         ORDER BY f.studentId, f.feeType
+                    """)
+            List<Fee> findInstitutionCollections(
+                       @Param("institutionId") UUID institutionId,
+                       @Param("status") FeeStatus status,
+                       @Param("feeType") FeeType feeType,
+                       @Param("collectionPeriod") String collectionPeriod
+                       );
+
+
+}
     
         

@@ -6,6 +6,8 @@ import com.tuitionnetwork.tuitionnetwork.billing.domain.Fee;
 import com.tuitionnetwork.tuitionnetwork.billing.infra.FeeRepository;
 import org.springframework.transaction.annotation.Transactional;
 import com.tuitionnetwork.tuitionnetwork.billing.domain.FeeStatus;
+import com.tuitionnetwork.tuitionnetwork.billing.domain.FeeType;
+
 import java.util.List;
 import java.util.UUID;
 import java.math.BigDecimal;
@@ -29,7 +31,7 @@ public class FeeService{
     }
 
     private void ensureFee(Fee fee){
-        if(fee.getStatus()==FeeStatus.PAID){
+        if(fee.getStatus()==FeeStatus.SETTLED){
             throw new IllegalArgumentException("Fee is already paid: "+fee.getId());
         }
         if(fee.getOutstandingAmount().signum()<=0){
@@ -76,6 +78,23 @@ public class FeeService{
         return fee.getOutstandingAmount();
     }
 
+    /* get a student's fee record for a specific institution */
+    public List<Fee> getFeesForStudentAndInstitution(UUID studentId,UUID institutionId) {
+        List<Fee> fees=
+                feeRepository.findByStudentIdAndInstitutionId(
+                        studentId,
+                        institutionId
+                );
+
+                if(fees.isEmpty()) {
+                      throw new FeeNotFoundException(
+                         "Student fee record not found"
+                        );
+                }
+                return fees;
+   
+}
+
     /*validate payment amount before processing */
     public void validatePaymentAmount(UUID feeId,BigDecimal paymentAmount){
         Fee fee=getPayableFee(feeId);
@@ -86,6 +105,27 @@ public class FeeService{
          if (paymentAmount.compareTo(fee.getOutstandingAmount())>0) {
             throw new IllegalArgumentException("Payment amount exceeds outstanding amount");
         }
+    }
+
+    /* get institution collections with optional fee type and period filters */
+    public List<Fee> getInstitutionCollections(
+         UUID institutionId,
+        FeeStatus feeStatus,
+        FeeType feeType,
+        String collectionPeriod 
+    ){
+        if(institutionId==null){
+            throw new IllegalArgumentException("Institution ID is required");
+        }
+        if(feeStatus==null){
+            throw new IllegalArgumentException("Fee status is required");
+        }
+        return feeRepository.findInstitutionCollections(
+            institutionId,
+             feeStatus, 
+             feeType, 
+             collectionPeriod);
+       
     }
 
 }

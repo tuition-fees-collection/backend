@@ -34,7 +34,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
         assertEquals(new BigDecimal("3000.00"),fee.getAmountPaid());
         assertEquals(new BigDecimal("7000.00"),fee.getOutstandingAmount());
-        assertEquals(FeeStatus.PARTIAL,fee.getStatus());
+        assertEquals(FeeStatus.PARTIALLY_PAID,fee.getStatus());
     }
 
     @Test 
@@ -44,7 +44,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
         assertEquals(new BigDecimal("5000.00"),fee.getAmountPaid());
         assertEquals(new BigDecimal("5000.00"),fee.getOutstandingAmount());
-        assertEquals(FeeStatus.PARTIAL,fee.getStatus());
+        assertEquals(FeeStatus.PARTIALLY_PAID,fee.getStatus());
     }
 
     @Test 
@@ -53,7 +53,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
         assertEquals(new BigDecimal("10000.00"),fee.getAmountPaid());
         assertEquals(new BigDecimal("0.00"),fee.getOutstandingAmount());
-        assertEquals(FeeStatus.PAID,fee.getStatus());
+        assertEquals(FeeStatus.SETTLED,fee.getStatus());
     }
 
     @Test 

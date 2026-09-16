@@ -10,6 +10,7 @@ import com.tuitionnetwork.tuitionnetwork.integration.service.UploadBatchNotFound
 import com.tuitionnetwork.tuitionnetwork.integration.service.UploadValidationException;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -37,7 +38,7 @@ public class FeeUploadController {
         this.identity = identity;
     }
 
-    @PostMapping("/api/v1/integration/uploads")
+    @PostMapping(value = "/api/v1/integration/uploads", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<FeeUploadResult> upload(
             @RequestParam(required = false) String externalBatchReference,
             @RequestPart MultipartFile file) {

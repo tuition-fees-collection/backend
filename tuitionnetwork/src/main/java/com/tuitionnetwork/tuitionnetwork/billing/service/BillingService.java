@@ -21,12 +21,12 @@ public class BillingService{
         this.feeService=feeService;
     }
 
-    /*get payable fees only (Read/Check*/
+   
     public Fee getPayableFee(UUID feeId){
         return feeService.getPayableFee(feeId);
     }
 
-     /*get outstanding amount fee for a fee */
+    
      public BigDecimal getOutstandingAmount(UUID feeId){
         return feeService.getOutstandingAmount(feeId);
      }
@@ -37,7 +37,7 @@ public class BillingService{
         return feeService.settle(feeId,amount,expectedVersion);
      }
 
-     /*find multiple fees by id */
+    
      @Transactional (readOnly = true)
      public List<Fee> findAllById(List<UUID> feeIds){
         return feeService.findAllById(feeIds);

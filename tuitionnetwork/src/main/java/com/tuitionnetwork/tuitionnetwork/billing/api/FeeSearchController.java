@@ -3,6 +3,7 @@ import com.tuitionnetwork.tuitionnetwork.billing.domain.Fee;
 import com.tuitionnetwork.tuitionnetwork.billing.api.dto.FeeSearchRequest;
 import com.tuitionnetwork.tuitionnetwork.billing.service.FeeService;
 import com.tuitionnetwork.tuitionnetwork.billing.api.dto.CategorizedFeesResponse;
+import com.tuitionnetwork.tuitionnetwork.billing.api.dto.StudentFeeRecordResponse;
 
 
 import java.util.List;
@@ -59,9 +60,14 @@ public class FeeSearchController{
 
     /*logged in gurdian gets fees for their students */
     @GetMapping("/me")
-    public List<CategorizedFeesResponse> getMyFees(){
+    public List<StudentFeeRecordResponse> getMyFees(){
         Set<UUID> studentIds=identityQueryService.getCurrentPayerStudentIds();
-        return buildCategorizedFees(studentIds);
+        List<StudentFeeRecordResponse> response=new ArrayList<>();
+        for(UUID studentId:studentIds){
+            List<Fee> fees=feeService.getFeesForStudent(studentId);
+            response.add(StudentFeeRecordResponse.from(studentId,fees));
+        }
+        return response;
     }
 
     /*build categorized response for each student */

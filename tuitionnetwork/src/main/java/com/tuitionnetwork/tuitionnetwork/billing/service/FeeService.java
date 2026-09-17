@@ -25,7 +25,7 @@ public class FeeService{
         this.feeRepository=feeRepository;
     }
 
-    /*get a fee by id */
+    
     public Fee getFee(UUID feeId){
         return feeRepository.findById(feeId)
         .orElseThrow(() -> new IllegalArgumentException("Fee not found: "+feeId));
@@ -41,7 +41,7 @@ public class FeeService{
 
     }
     
-    /*get payable fees only (Read/Check*/
+    
     public Fee getPayableFee(UUID feeId){
         Fee fee=getFee(feeId);
         ensureFee(fee);
@@ -50,28 +50,28 @@ public class FeeService{
     }
 
 
-    /*get all fees for a specific student */
+    
     public List<Fee> getFeesForStudent(UUID studentId){
         return feeRepository.findByStudentId(studentId);
     }
 
-    /*get payable fees for a specific student */
+    
     public List<Fee> getPayableFeesForStudent(UUID studentId){
         return feeRepository.findPayableFeeByStudentId(studentId);
     }
 
-    /*get all payable fees for multiple students(for gurdian's fee view) */
+    
     public List<Fee> getPayableFeesForStudents(List<UUID> studentIds){
         return feeRepository.findPayableFeesByStudentIds(studentIds);
     }
 
-    /*get outstanding amount fee for a fee */
+   
     public BigDecimal getOutstandingAmount(UUID feeId){
         Fee fee=getFee(feeId);
         return fee.getOutstandingAmount();
     }
 
-    /* get a student's fee record for a specific institution */
+    
     public List<Fee> getFeesForStudentAndInstitution(UUID studentId,UUID institutionId) {
         List<Fee> fees=
                 feeRepository.findByStudentIdAndInstitutionId(
@@ -105,7 +105,7 @@ public class FeeService{
           }
 
           
-          /*get multiple fees by their ids*/
+         
           @Transactional(readOnly = true)
           public List<Fee> findAllById(List<UUID> feeIds){
             if(feeIds==null||feeIds.isEmpty()){
@@ -116,7 +116,7 @@ public class FeeService{
 
     
 
-    /*validate payment amount before processing */
+   
     public void validatePaymentAmount(UUID feeId,BigDecimal paymentAmount){
         Fee fee=getPayableFee(feeId);
         if(paymentAmount==null||paymentAmount.signum()<=0){
@@ -128,7 +128,7 @@ public class FeeService{
         }
     }
 
-    /* get institution collections with optional fee type and period filters */
+   
     public List<Fee> getInstitutionCollections(
          UUID institutionId,
         FeeStatus feeStatus,

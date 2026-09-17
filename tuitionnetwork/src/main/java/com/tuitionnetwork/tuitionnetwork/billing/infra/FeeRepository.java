@@ -16,19 +16,19 @@ import java.util.UUID;
 
 public interface FeeRepository extends JpaRepository<Fee,UUID> {
 
-    /*get all fees for a specific student */
+   
     List<Fee> findByStudentId(UUID studentId);
 
-    /* get all fees for a student with specific status */
+   
     List<Fee> findByStudentIdAndStatus(
         UUID studentId,
         FeeStatus status
     );
 
-    /*get all fees belonging to specific institution */
+    
     List<Fee> findByInstitutionId(UUID institutionId);
 
-    /*get all fees for an institution with  specific status */
+    
     List<Fee> findByInstitutionIdAndStatus(
         UUID institutionId,
         FeeStatus status

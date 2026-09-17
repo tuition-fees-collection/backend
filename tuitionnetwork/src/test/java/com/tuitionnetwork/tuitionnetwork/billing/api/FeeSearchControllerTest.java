@@ -5,6 +5,7 @@ import com.tuitionnetwork.tuitionnetwork.billing.api.dto.FeeSearchRequest;
 import com.tuitionnetwork.tuitionnetwork.billing.domain.Fee;
 import com.tuitionnetwork.tuitionnetwork.billing.domain.FeeType;
 import com.tuitionnetwork.tuitionnetwork.billing.service.FeeService;
+import com.tuitionnetwork.tuitionnetwork.billing.api.dto.StudentFeeRecordResponse;
 
 import com.tuitionnetwork.tuitionnetwork.identity.domain.NationalId;
 import com.tuitionnetwork.tuitionnetwork.identity.service.GuardianSearchScope;
@@ -98,16 +99,22 @@ import static org.mockito.Mockito.*;
             null
 
         );
-        when(
-            identityQueryService.getCurrentPayerStudentIds()
-    ).thenReturn(Set.of(studentId));
+        Fee settledFee=new Fee(
+            studentId,
+            institutionId,
+            FeeType.ACTIVITIES,
+            "2026-2027",
+            "EGP",
+            new BigDecimal("2000.00"),
+            null
 
-    when(
-            feeService.getPayableFeesForStudent(studentId)
-    ).thenReturn(List.of(fee));
+        );
+        settledFee.applyPayment(new BigDecimal("2000.00"));
+        when(identityQueryService.getCurrentPayerStudentIds()).thenReturn(Set.of(studentId));
 
-    List<CategorizedFeesResponse> result =
-            feeSearchController.getMyFees();
+        when(feeService.getFeesForStudent(studentId)).thenReturn(List.of(fee,settledFee));
+
+    List<StudentFeeRecordResponse> result=feeSearchController.getMyFees();
 
     assertEquals(1, result.size());
 
@@ -115,16 +122,32 @@ import static org.mockito.Mockito.*;
             studentId,
             result.get(0).studentId()
     );
-assertEquals(
+    assertEquals(
+            new BigDecimal("10000.00"),
+            result.get(0).yearTotal()
+    );
+    assertEquals(
+            new BigDecimal("2000.00"),
+            result.get(0).amountPaid()
+    );
+    assertEquals(
             new BigDecimal("8000.00"),
-            result.get(0).totalOutstandingAmount()
+            result.get(0).amountOutstanding()
+    );
+    assertEquals(
+            2,
+            result.get(0).fees().size()
     );
 
     verify(identityQueryService)
             .getCurrentPayerStudentIds();
 
     verify(feeService)
+            .getFeesForStudent(studentId);
+
+    verify(feeService,never())
             .getPayableFeesForStudent(studentId);
+
 
     verify(identityAccessService, never())
             .requireBankOfficer();

@@ -9,7 +9,9 @@ public interface Backofficegatewayport {
     CardGatewayPort.Result getSourcePaymentStatus(String gatewayPaymentId);
     record CustomerProfile(
             String customerId,
-            String fullName,
+            String fullNameEnglish,
+            String fullNameArabic,
+            String mobile,
             String status,
             List<Account> accounts,
             List<Card> cards
@@ -21,6 +23,9 @@ public interface Backofficegatewayport {
 
         public boolean isActive() {
             return "ACTIVE".equals(status);
+        }
+        public String fullName() {
+            return fullNameEnglish;
         }
     }
     record Account(
@@ -43,6 +48,7 @@ public interface Backofficegatewayport {
             String holderName,
             String expiry,
             String status,
+            BigDecimal creditLimit,
             BigDecimal availableLimit,
             String linkedAccountId
     ) {

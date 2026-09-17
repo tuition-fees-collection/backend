@@ -1,6 +1,8 @@
 package com.tuitionnetwork.tuitionnetwork.payment.api;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -84,15 +86,16 @@ ResponseEntity<ApiError> validation(Paymentvalidationexception e) {
                 .toList();
         return respond(HttpStatus.BAD_REQUEST, "VALIDATION_ERROR", String.join("; ", problems));
     }
-    //pass as negative payemnt
-    @ExceptionHandler(IllegalArgumentException.class)
-    ResponseEntity<ApiError> illegalArgument(IllegalArgumentException e) {
-        return respond(HttpStatus.BAD_REQUEST, "INVALID_REQUEST", e.getMessage());
-    }
+   
     //as make reepit for payment is not made
-    @ExceptionHandler(IllegalStateException.class)
-    ResponseEntity<ApiError> illegalState(IllegalStateException e) {
-        return respond(HttpStatus.CONFLICT, "INVALID_STATE", e.getMessage());
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<Map<String, String>> handleIllegalArgumentException(IllegalArgumentException ex) {
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(Map.of(
+                        "code", "INVALID_ARGUMENT",
+                        "message", ex.getMessage()
+                ));
     }
     //runtime
     @ExceptionHandler(Exception.class)

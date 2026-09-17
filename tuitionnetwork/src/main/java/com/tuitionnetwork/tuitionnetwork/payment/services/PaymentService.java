@@ -71,7 +71,18 @@ public class PaymentService implements CreatePaymentUseCase {
         if (existing.isPresent()) {
             log.info("Idempotent replay of key {} for guardian {}",
                     command.idempotencyKey(), caller.guardianId());
-            return view(existing.get(), true);
+            /*
+             * A replay returns the order as it was created, with its lines read
+             * back from storage rather than from a request that may differ. The
+             * fee names are left out: filling them in would mean a billing call
+             * on the one path whose whole purpose is to do no work.
+             */
+            List<CreatePaymentUseCase.AllocatedLine> replayed =
+                    allocations.findByPaymentId(existing.get().getId()).stream()
+                            .map(row -> new CreatePaymentUseCase.AllocatedLine(
+                                    row.getFeeId(), null, null, row.getAmountApplied()))
+                            .toList();
+            return view(existing.get(), true, replayed);
         }
 
         List<UUID> feeIds = command.feeLines().stream().map(line -> line.feeId()).toList();
@@ -142,7 +153,21 @@ public class PaymentService implements CreatePaymentUseCase {
         log.info("Created payment {} for guardian {} totalling {} {}",
                 payment.getId(), payment.getGuardianId(), total, payment.getCurrency());
 
-        return view(payment, false);
+        /*
+         * Built from the fee records already loaded to validate the request, so
+         * the response can name each fee without asking billing a second time.
+         * The client posted ids and amounts; billing supplied the rest.
+         */
+        List<CreatePaymentUseCase.AllocatedLine> lines = command.feeLines().stream()
+                .map(line -> {
+                    BillingPort.PayableFee fee = fees.get(line.feeId());
+                    return new CreatePaymentUseCase.AllocatedLine(
+                            line.feeId(), fee.feeType(), fee.collectionPeriod(),
+                            line.amountToApply());
+                })
+                .toList();
+
+        return view(payment, false, lines);
     }
 
     private PaymentCaller callerFor(UUID studentId) {
@@ -153,7 +178,8 @@ public class PaymentService implements CreatePaymentUseCase {
         }
     }
 
-    private PaymentOrderView view(Payment payment, boolean replay) {
+    private PaymentOrderView view(Payment payment, boolean replay,
+                                  List<CreatePaymentUseCase.AllocatedLine> lines) {
         return new PaymentOrderView(
                 payment.getId(),
                 payment.getStatus(),
@@ -163,7 +189,8 @@ public class PaymentService implements CreatePaymentUseCase {
                 payment.getPaymentType(),
                 payment.getCreatedAt(),
                 payment.getExpiresAt(),
-                replay);
+                replay,
+                lines == null ? List.of() : lines);
     }
 
     private String serialise(Object event) {

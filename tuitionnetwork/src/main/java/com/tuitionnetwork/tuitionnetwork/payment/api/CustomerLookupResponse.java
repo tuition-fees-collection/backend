@@ -1,50 +1,61 @@
 package com.tuitionnetwork.tuitionnetwork.payment.api;
-
 import java.math.BigDecimal;
-import java.util.ArrayList;
 import java.util.List;
-
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.tuitionnetwork.tuitionnetwork.payment.port.portout.Backofficegatewayport.CustomerProfile;
+
 public record CustomerLookupResponse(
-        String customerName,
-        boolean active,
-        List<PayableSource> sources
+        @JsonProperty("customer_id") String customerId,
+        @JsonProperty("national_id") String nationalId,
+        @JsonProperty("full_name_en") String fullNameEnglish,
+        @JsonProperty("full_name_ar") String fullNameArabic,
+        String mobile,
+        String status,
+        List<Account> accounts,
+        List<Card> cards
 ) {
-    public record PayableSource(
-            String sourceId,
+    public record Account(
+            @JsonProperty("account_id") String accountId,
+            @JsonProperty("account_number") String accountNumber,
             String type,
-            String label,
-            BigDecimal available,
             String currency,
-            boolean usable
+            @JsonProperty("available_balance") BigDecimal availableBalance,
+            String status
     ) {
     }
 
-    public static CustomerLookupResponse from(CustomerProfile profile) {
-        List<PayableSource> sources = new ArrayList<>();
-
-        profile.accounts().forEach(account -> sources.add(new PayableSource(
-                account.accountId(),
-                "ACCOUNT",
-                account.type() + " " + lastFour(account.accountNumber()),
-                account.availableBalance(),
-                account.currency(),
-                account.isUsable())));
-
-        profile.cards().forEach(card -> sources.add(new PayableSource(
-                card.cardId(),
-                "CARD",
-                card.scheme() + " " + card.type() + " " + card.maskedNumber(),
-                card.availableLimit(),
-                "EGP",
-                card.isUsable())));
-
-        return new CustomerLookupResponse(profile.fullName(), profile.isActive(), sources);
+    public record Card(
+            @JsonProperty("card_id") String cardId,
+            @JsonProperty("masked_number") String maskedNumber,
+            String scheme,
+            String type,
+            @JsonProperty("holder_name") String holderName,
+            String expiry,
+            String status,
+            @JsonProperty("credit_limit") BigDecimal creditLimit,
+            @JsonProperty("available_limit") BigDecimal availableLimit,
+            @JsonProperty("linked_account_id") String linkedAccountId
+    ) {
     }
-    private static String lastFour(String accountNumber) {
-        if (accountNumber == null || accountNumber.length() <= 4) {
-            return accountNumber == null ? "" : accountNumber;
-        }
-        return "****" + accountNumber.substring(accountNumber.length() - 4);
+
+    public static CustomerLookupResponse from(CustomerProfile profile, String nationalId) {
+        return new CustomerLookupResponse(
+                profile.customerId(),
+                nationalId,
+                profile.fullNameEnglish(),
+                profile.fullNameArabic(),
+                profile.mobile(),
+                profile.status(),
+                profile.accounts().stream()
+                        .map(account -> new Account(
+                                account.accountId(), account.accountNumber(), account.type(),
+                                account.currency(), account.availableBalance(), account.status()))
+                        .toList(),
+                profile.cards().stream()
+                        .map(card -> new Card(
+                                card.cardId(), card.maskedNumber(), card.scheme(), card.type(),
+                                card.holderName(), card.expiry(), card.status(),
+                                card.creditLimit(), card.availableLimit(), card.linkedAccountId()))
+                        .toList());
     }
 }

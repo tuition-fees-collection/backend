@@ -20,13 +20,13 @@ public interface CreatePaymentUseCase {
             if (feeLines == null || feeLines.isEmpty()) {
                 throw new IllegalArgumentException("A payment must settle at least one fee line");
             }
-            feeLines = List.copyOf(feeLines); //fixed list
+            feeLines = List.copyOf(feeLines);
         }
-       public BigDecimal totalAmount() {
-                return feeLines.stream()
-            .map(line -> line.amountToApply())
-            .reduce(BigDecimal.ZERO, (a, b) -> a.add(b));
-}
+        public BigDecimal totalAmount() {
+            return feeLines.stream()
+                    .map(FeeLine::amountToApply)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+        }
     }
 
     record FeeLine(UUID feeId, BigDecimal amountToApply) {
@@ -45,7 +45,34 @@ public interface CreatePaymentUseCase {
             PaymentType paymentType,
             Instant createdAt,
             Instant expiresAt,
-            boolean idempotentReplay
+            boolean idempotentReplay,
+
+            /**
+             * What this order will pay, fee by fee.
+             *
+             * Echoed back so a client can confirm the order it just created
+             * without a second call - and so it can see the fee names, which it
+             * never sent. It posted ids and amounts; billing supplied the rest.
+             *
+             * The amount is the sum of these lines and is checked against them
+             * before anything is saved, so a client cannot post a total that
+             * disagrees with its own breakdown.
+             */
+            List<AllocatedLine> allocations
+    ) {
+    }
+
+    /**
+     * One fee line of an order, as billing describes it.
+     *
+     * feeType and collectionPeriod come from the fee records already loaded to
+     * validate the request - no extra call to billing to fill them in.
+     */
+    record AllocatedLine(
+            UUID feeId,
+            String feeType,
+            String collectionPeriod,
+            BigDecimal amountApplied
     ) {
     }
 }

@@ -77,7 +77,19 @@ public class DevDCardGatewayBridge implements CardGatewayPort {
                 response.authCode(), response.rrn(), response.responseCode(), response.responseMessage(),
                 response.card() == null ? null : response.card().maskedNumber(),
                 response.card() == null ? null : response.card().scheme(),
-                response.card() == null ? null : response.card().type(), null);
+                response.card() == null ? null : response.card().type(), null,
+
+                /*
+                 * customerId and sourceId stay null on this route, and should.
+                 * A typed card charge resolves no customer at the provider and
+                 * has no stored source - putting anything there would be
+                 * inventing it. They are populated only by the back-office path,
+                 * where the provider genuinely knows both.
+                 */
+                null,
+                null,
+                response.orderReference(),
+                response.amount());
     }
 
     private Result mapFailure(BankMockApiException exception, String knownPaymentId) {
@@ -98,7 +110,10 @@ public class DevDCardGatewayBridge implements CardGatewayPort {
                 ? Outcome.DECLINED : Outcome.REJECTED;
         return new Result(outcome, paymentId, null, null, null, null,
                 detail(details, "response_code", null), exception.getMessage(),
-                null, null, null, exception.code());
+                null, null, null, exception.code(),
+                null, null,
+                detail(details, "order_reference", null),
+                null);
     }
 
     private String detail(Map<String, Object> details, String key, String fallback) {

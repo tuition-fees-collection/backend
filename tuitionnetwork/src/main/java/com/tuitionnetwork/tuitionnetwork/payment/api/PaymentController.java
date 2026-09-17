@@ -1,4 +1,5 @@
 package com.tuitionnetwork.tuitionnetwork.payment.api;
+
 import java.util.List;
 import java.util.UUID;
 import org.slf4j.Logger;
@@ -33,16 +34,13 @@ import jakarta.validation.constraints.Size;
 
 @RestController
 @RequestMapping("/api/v1/payment-orders")
-//Tells Swagger that every route in this controller requires a Bearer JWT token.
 @SecurityRequirement(name = "bearerAuth")
 public class PaymentController {
 
     private static final Logger log = LoggerFactory.getLogger(PaymentController.class);
-//Port for creating new payment orders
+
     private final CreatePaymentUseCase createPayment;
-    //Port for processing payments
     private final ExecutePaymentSagaUseCase executePayment;
-    //Port for fetching payment details, receipts, and transaction history.
     private final GetPaymentUseCase getPayment;
     private final Backofficegatewayport backoffice;
 
@@ -94,23 +92,41 @@ public class PaymentController {
         log.info("Taking cash payment {}", paymentId);
         return executePayment.execute(ExecutePaymentCommand.forCash(paymentId));
     }
+
     @PostMapping("/{paymentId}/pay-source")
-    public PaymentResultView paySource(
+    public ExecutePaymentSagaUseCase.ProviderDetail paySource(
             @PathVariable UUID paymentId,
             @Valid @RequestBody SourceChargeRequest request) {
 
         log.info("Charging payment {} from a held source", paymentId);
 
-        return executePayment.execute(ExecutePaymentCommand.withSource(
-                paymentId, request.sourceId(), request.nationalId()));
+        // Fixed: matches withSource(UUID paymentId, String sourceId, String nationalId)
+        PaymentResultView view = executePayment.execute(
+                ExecutePaymentCommand.withSource(
+                        paymentId,
+                        request.sourceId(),
+                        request.nationalId()
+                ));
+
+        return view.provider();
     }
-    @GetMapping("/customer-lookup")
-    public CustomerLookupResponse lookupCustomer(@RequestParam String nationalId) {
-        return backoffice.lookupCustomer(nationalId)
-                .map(CustomerLookupResponse::from)
-                .orElseThrow(() -> new IllegalArgumentException(
-                        "No bank customer found for that national ID"));
+
+   @GetMapping("/customer-lookup")
+public CustomerLookupResponse lookupCustomer(
+        @RequestParam(value = "nationalId", required = false) String nationalIdCamel,
+        @RequestParam(value = "national_id", required = false) String nationalIdSnake) {
+
+    String nationalId = nationalIdCamel != null ? nationalIdCamel : nationalIdSnake;
+
+    if (nationalId == null || nationalId.isBlank()) {
+        throw new IllegalArgumentException("nationalId parameter is required");
     }
+
+    return backoffice.lookupCustomer(nationalId)
+            .map(profile -> CustomerLookupResponse.from(profile, nationalId))
+            .orElseThrow(() -> new IllegalArgumentException(
+                    "No bank customer found for that national ID"));
+}
 
     @PostMapping("/{paymentId}/3ds")
     public PaymentResultView confirm3ds(

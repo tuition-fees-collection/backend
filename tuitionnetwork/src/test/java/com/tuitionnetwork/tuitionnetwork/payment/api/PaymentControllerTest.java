@@ -40,6 +40,7 @@ import com.tuitionnetwork.tuitionnetwork.payment.port.portout.Backofficegatewayp
 import com.tuitionnetwork.tuitionnetwork.payment.services.PaymentAccessDeniedException;
 import com.tuitionnetwork.tuitionnetwork.payment.services.Paymentvalidationexception;
 
+
 @ActiveProfiles("test")
 @WebMvcTest(controllers = PaymentController.class)
 @AutoConfigureMockMvc(addFilters = false)
@@ -216,24 +217,55 @@ class PaymentControllerTest {
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.status").value("SUCCESSFUL"));
         }
-
-        @Test
-        @DisplayName("charges payment from a held bank source")
+       @Test
+        @DisplayName("returns the provider's own answer, not this module's result view")
         void paySource() throws Exception {
+            ExecutePaymentSagaUseCase.ProviderDetail provider =
+                    new ExecutePaymentSagaUseCase.ProviderDetail(
+                            "bop_d1c3c3593b7b4bab",
+                            "POSTED",
+                            true,
+                            new BigDecimal("250.00"),
+                            new BigDecimal("250.00"),
+                            PAYMENT_ID.toString(),
+                            "cif_100005",
+                            "acc_youssef_current",
+                            new ExecutePaymentSagaUseCase.ProviderDetail.Source(
+                                    "ACCOUNT", "CURRENT", null, null),
+                            "842004",
+                            "416366550696",
+                            "00",
+                            "Approved");
+
             when(executePayment.execute(any())).thenReturn(new PaymentResultView(
                     PAYMENT_ID, PaymentStatus.SUCCESSFUL, false, null, "RCP-2026-SOURCE",
-                    "Payment successful"));
+                    "Payment successful", provider));
 
             mvc.perform(post("/api/v1/payment-orders/" + PAYMENT_ID + "/pay-source")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content("""
                                     {
-                                      "sourceId": "SRC-9999",
-                                      "nationalId": "29901011234567"
+                                      "source_id": "acc_youssef_current",
+                                      "national_id": "30007091301775",
+                                      "amount": {
+                                        "value": 250.00,
+                                        "currency": "EGP"
+                                      },
+                                      "reference": "REF123",
+                                      "description": "Tuition payment",
+                                      "capture": true
                                     }
                                     """))
                     .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.status").value("SUCCESSFUL"));
+                    .andExpect(jsonPath("$.payment_id").value("bop_d1c3c3593b7b4bab"))
+                    .andExpect(jsonPath("$.status").value("POSTED"))
+                    .andExpect(jsonPath("$.approved").value(true))
+                    .andExpect(jsonPath("$.customer_id").value("cif_100005"))
+                    .andExpect(jsonPath("$.source_id").value("acc_youssef_current"))
+                    .andExpect(jsonPath("$.source.product_type").value("CURRENT"))
+                    .andExpect(jsonPath("$.response_code").value("00"))
+                    .andExpect(jsonPath("$.paymentId").doesNotExist())
+                    .andExpect(jsonPath("$.receiptReference").doesNotExist());
         }
     }
 
@@ -298,17 +330,35 @@ class CustomerLookup {
         }
     }
 
-    private static PaymentOrderView orderView(boolean replay) {
+            private static PaymentOrderView orderView(boolean replay) {
         Instant now = Instant.now();
         return new PaymentOrderView(PAYMENT_ID, PaymentStatus.CREATED, new BigDecimal("500.00"),
                 "EGP", PaymentMethod.CREDIT_CARD, PaymentType.PARTIAL, now,
-                now.plusSeconds(900), replay);
+                now.plusSeconds(900), replay,
+                List.of(new CreatePaymentUseCase.AllocatedLine(
+                        UUID.fromString("66666666-6666-6666-6666-666666666666"),
+                        "TUITION", "2026-T1", new BigDecimal("500.00"))));
     }
-
     private static PaymentView paymentView() {
         return new PaymentView(PAYMENT_ID, PaymentStatus.SUCCESSFUL, new BigDecimal("500.00"),
                 "EGP", PaymentMethod.CREDIT_CARD, PaymentType.PARTIAL,
                 "411111******1111", "VISA", Instant.now(), Instant.now(),
                 "RCP-2026-TESTTEST", List.of());
     }
+    @Test
+@DisplayName("returns the customer's accounts and cards")
+void lookupReturnsSources() throws Exception {
+    when(backoffice.lookupCustomer("29805150101023")).thenReturn(Optional.of(
+            new Backofficegatewayport.CustomerProfile(
+                    "cif_100001", "Mona Samir Abdelrahman", "منى سمير", "01001234567", "ACTIVE",
+                    List.of(new Backofficegatewayport.Account("acc_1", "1001000012345",
+                            "CURRENT", "EGP", new BigDecimal("50000"), "ACTIVE")),
+                    List.of())));
+
+    mvc.perform(get("/api/v1/payment-orders/customer-lookup")
+                    .param("nationalId", "29805150101023"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.customer_id").value("cif_100001"))
+            .andExpect(jsonPath("$.accounts[0].account_id").value("acc_1"));
+}
 }

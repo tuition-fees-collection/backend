@@ -103,7 +103,7 @@ public class PaymentSagaOrchestrator implements ExecutePaymentSagaUseCase {
         switch (result.outcome()) {
             case APPROVED -> {
                 saga.succeed(step);
-                return view(settlement.settleSuccess(payment, result), false, "Payment successful");
+                return view(settlement.settleSuccess(payment, result), false, "Payment successful", result);
             }
 
             case REQUIRES_3DS -> {
@@ -117,7 +117,7 @@ public class PaymentSagaOrchestrator implements ExecutePaymentSagaUseCase {
             case DECLINED, REJECTED -> {
                 saga.fail(step, result.errorCode() + ": " + result.responseMessage());
                 String message = safeMessage(result);
-                return view(settlement.settleFailure(payment, message, result), false, message);
+                return view(settlement.settleFailure(payment, message, result), false, message, result);
             }
 
             case UNKNOWN, NOT_FOUND -> {
@@ -158,12 +158,68 @@ public class PaymentSagaOrchestrator implements ExecutePaymentSagaUseCase {
     }
 
     private PaymentResultView view(Payment payment, boolean requires3ds, String message) {
-    String receiptReference = payment.getStatus() == PaymentStatus.SUCCESSFUL
-            ? receipts.findByPaymentId(payment.getId())
-                    .map(receipt -> receipt.referenceNumber())
-                    .orElse(null)
-            : null;
-    return new PaymentResultView(payment.getId(), payment.getStatus(), requires3ds,
-            payment.getMaskedCardNumber(), receiptReference, message);
-}
+        return view(payment, requires3ds, message, null);
+    }
+
+    /**
+     * The same view, plus what the provider actually said.
+     *
+     * A null result means there was no provider - a cash payment, or a route that
+     * refused before reaching one.
+     */
+    private PaymentResultView view(Payment payment, boolean requires3ds, String message,
+                                   CardGatewayPort.Result result) {
+        String receiptReference = payment.getStatus() == PaymentStatus.SUCCESSFUL
+                ? receipts.findByPaymentId(payment.getId())
+                        .map(receipt -> receipt.referenceNumber())
+                        .orElse(null)
+                : null;
+
+        return new PaymentResultView(payment.getId(), payment.getStatus(), requires3ds,
+                payment.getMaskedCardNumber(), receiptReference, message,
+                providerDetail(result));
+    }
+
+    /**
+     * The provider's answer, in the provider's own words.
+     *
+     * Everything here came from the response this module already read; nothing is
+     * looked up again. On an unknown outcome most of it is null, and that is the
+     * honest picture - the provider told us almost nothing, which is precisely
+     * why the payment was flagged rather than settled.
+     */
+    private static ExecutePaymentSagaUseCase.ProviderDetail providerDetail(
+            CardGatewayPort.Result result) {
+
+        if (result == null) {
+            return null;
+        }
+
+        /*
+         * The provider names the product only when it got far enough to charge
+         * one. A null scheme on an approved payment means an account was debited
+         * rather than a card charged - accounts have no scheme.
+         */
+        ExecutePaymentSagaUseCase.ProviderDetail.Source source =
+                new ExecutePaymentSagaUseCase.ProviderDetail.Source(
+                        result.cardScheme() == null ? "ACCOUNT" : "CARD",
+                        result.cardType(),
+                        result.maskedCardNumber(),
+                        result.cardScheme());
+
+        return new ExecutePaymentSagaUseCase.ProviderDetail(
+                result.gatewayPaymentId(),
+                result.gatewayStatus(),
+                result.outcome() == CardGatewayPort.Outcome.APPROVED,
+                result.amount(),
+                result.capturedAmount(),
+                result.reference(),
+                result.customerId(),
+                result.sourceId(),
+                source,
+                result.authCode(),
+                result.rrn(),
+                result.responseCode(),
+                result.responseMessage());
+    }
 }

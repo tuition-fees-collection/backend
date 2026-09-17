@@ -1,11 +1,14 @@
 package com.tuitionnetwork.tuitionnetwork.payment.infra.gateway;
+
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClientException;
+
 import com.tuitionnetwork.tuitionnetwork.payment.port.portout.Backofficegatewayport;
 import com.tuitionnetwork.tuitionnetwork.payment.port.portout.CardGatewayPort.Outcome;
 import com.tuitionnetwork.tuitionnetwork.payment.port.portout.CardGatewayPort.Result;
@@ -20,12 +23,12 @@ import com.tuitionnetwork.tuitionnetwork.payments.infra.ports.bankmock.PaymentSo
 @Component
 public class Devdbackofficebridge implements Backofficegatewayport{
 
-    private static final Logger log = LoggerFactory.getLogger(Devdbackofficebridge.class);
+    private static final Logger log = LoggerFactory.getLogger( Devdbackofficebridge.class);
 
     private final BackofficePaymentPort payments;
     private final CustomerLookupPort customers;
 
-    public Devdbackofficebridge(BackofficePaymentPort payments, CustomerLookupPort customers) {
+    public  Devdbackofficebridge(BackofficePaymentPort payments, CustomerLookupPort customers) {
         this.payments = payments;
         this.customers = customers;
     }
@@ -51,7 +54,6 @@ public class Devdbackofficebridge implements Backofficegatewayport{
             return Optional.empty();
         }
     }
-
     private CustomerProfile toProfile(CustomerResponse response) {
         List<Account> accounts = response.accounts() == null ? List.of()
                 : response.accounts().stream()
@@ -65,12 +67,17 @@ public class Devdbackofficebridge implements Backofficegatewayport{
                         .map(card -> new Card(
                                 card.cardId(), card.maskedNumber(), card.scheme(), card.type(),
                                 card.holderName(), card.expiry(), card.status(),
-                                card.availableLimit(), card.linkedAccountId()))
+                                card.creditLimit(), card.availableLimit(), card.linkedAccountId()))
                         .toList();
 
         return new CustomerProfile(
-                response.customerId(), response.fullNameEnglish(), response.status(),
-                accounts, cards);
+                response.customerId(),
+                response.fullNameEnglish(),
+                response.fullNameArabic(),
+                response.mobile(),
+                response.status(),
+                accounts,
+                cards);
     }
     @Override
     public Result chargeSource(SourceChargeCommand command, String idempotencyKey) {
@@ -126,7 +133,11 @@ public class Devdbackofficebridge implements Backofficegatewayport{
                     null, null, null,
                     response.responseCode(), response.responseMessage(),
                     maskedNumber(response.source()), scheme(response.source()),
-                    productType(response.source()), null);
+                    productType(response.source()), null,
+                    response.customerId(),
+                    response.sourceId(),
+                    response.reference(),
+                    response.amount());
         }
 
         PaymentSource source = response.source();
@@ -142,12 +153,23 @@ public class Devdbackofficebridge implements Backofficegatewayport{
                 maskedNumber(source),
                 scheme(source),
                 productType(source),
-                null);
+                null,
+
+                /*
+                 * The provider's own view of the payment, carried so a response
+                 * can show what the bank recorded rather than only what we
+                 * concluded from it. An officer reconciles against these.
+                 */
+                response.customerId(),
+                response.sourceId(),
+                response.reference(),
+                response.amount());
     }
     private Result mapFailure(BankMockApiException e, String knownPaymentId) {
         Map<String, Object> details = e.details() == null ? Map.of() : e.details();
         String paymentId = detail(details, "payment_id", knownPaymentId);
         String code = e.code() == null ? "" : e.code();
+
         if ("SOURCE_NOT_FOUND".equals(code)
                 || "PAYMENT_NOT_FOUND".equals(code)
                 || "CUSTOMER_NOT_FOUND".equals(code)
@@ -169,7 +191,10 @@ public class Devdbackofficebridge implements Backofficegatewayport{
 
         return new Result(outcome, paymentId, null, null, null, null,
                 detail(details, "response_code", null), e.getMessage(),
-                null, null, null, code);
+                null, null, null, code,
+                detail(details, "customer_id", null),
+                detail(details, "source_id", null),
+                null, null);
     }
 
     private static String maskedNumber(PaymentSource source) {

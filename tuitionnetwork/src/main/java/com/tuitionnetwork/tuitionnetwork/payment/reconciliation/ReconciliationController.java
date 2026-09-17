@@ -18,6 +18,7 @@ public class ReconciliationController {
         this.checks = checks;
         this.store = store;
     }
+    //Run reconciliation now.
     @PostMapping("/run")
     public GatewayCheckRecords.Run runNow() {
         return checks.sweep();
@@ -26,10 +27,12 @@ public class ReconciliationController {
     public List<GatewayCheckRecords.Run> recent() {
         return store.recentRuns(10);
     }
+    //gets all payments checked during that reconciliation run.
     @GetMapping("/{runId}/items")
     public List<GatewayCheckRecords.Item> itemsFor(@PathVariable UUID runId) {
         return store.itemsForRun(runId);
     }
+    //Show me the reconciliation history for this specific payment
     @GetMapping("/payments/{paymentId}")
     public List<GatewayCheckRecords.Item> historyFor(@PathVariable UUID paymentId) {
         return store.itemsForPayment(paymentId);

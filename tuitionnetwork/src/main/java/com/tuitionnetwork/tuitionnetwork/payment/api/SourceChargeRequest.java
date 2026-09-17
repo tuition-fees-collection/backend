@@ -1,10 +1,18 @@
 package com.tuitionnetwork.tuitionnetwork.payment.api;
-import jakarta.validation.constraints.NotBlank;
-public record SourceChargeRequest(
+import java.math.BigDecimal;
 
-        @NotBlank(message = "sourceId is required")
-        String sourceId,
-        @NotBlank(message = "nationalId is required")
-        String nationalId
+import com.fasterxml.jackson.annotation.JsonAlias;
+import com.fasterxml.jackson.annotation.JsonProperty;
+public record SourceChargeRequest(
+        @JsonProperty("source_id") @JsonAlias("sourceId") String sourceId,
+        @JsonProperty("national_id") @JsonAlias("nationalId") String nationalId,
+        Amount amount,
+        String reference,
+        String description,
+        boolean capture
 ) {
+    public record Amount(
+            BigDecimal value,
+            String currency
+    ) {}
 }

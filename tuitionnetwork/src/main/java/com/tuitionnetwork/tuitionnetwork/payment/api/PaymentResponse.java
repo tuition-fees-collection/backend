@@ -46,7 +46,11 @@ public record PaymentResponse(
                 view.expiresAt(),
                 null,
                 null,
-                List.of());
+                view.allocations().stream()
+                        .map(line -> new AllocationResponse(
+                                line.feeId(), line.feeType(), line.collectionPeriod(),
+                                line.amountApplied()))
+                        .toList());
     }
     //view
 

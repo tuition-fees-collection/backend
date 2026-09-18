@@ -154,12 +154,6 @@ public class Devdbackofficebridge implements Backofficegatewayport{
                 scheme(source),
                 productType(source),
                 null,
-
-                /*
-                 * The provider's own view of the payment, carried so a response
-                 * can show what the bank recorded rather than only what we
-                 * concluded from it. An officer reconciles against these.
-                 */
                 response.customerId(),
                 response.sourceId(),
                 response.reference(),

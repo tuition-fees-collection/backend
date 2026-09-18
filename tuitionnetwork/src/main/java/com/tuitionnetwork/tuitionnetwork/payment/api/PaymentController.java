@@ -99,8 +99,6 @@ public class PaymentController {
             @Valid @RequestBody SourceChargeRequest request) {
 
         log.info("Charging payment {} from a held source", paymentId);
-
-        // Fixed: matches withSource(UUID paymentId, String sourceId, String nationalId)
         PaymentResultView view = executePayment.execute(
                 ExecutePaymentCommand.withSource(
                         paymentId,

@@ -46,28 +46,10 @@ public interface CreatePaymentUseCase {
             Instant createdAt,
             Instant expiresAt,
             boolean idempotentReplay,
-
-            /**
-             * What this order will pay, fee by fee.
-             *
-             * Echoed back so a client can confirm the order it just created
-             * without a second call - and so it can see the fee names, which it
-             * never sent. It posted ids and amounts; billing supplied the rest.
-             *
-             * The amount is the sum of these lines and is checked against them
-             * before anything is saved, so a client cannot post a total that
-             * disagrees with its own breakdown.
-             */
             List<AllocatedLine> allocations
     ) {
     }
 
-    /**
-     * One fee line of an order, as billing describes it.
-     *
-     * feeType and collectionPeriod come from the fee records already loaded to
-     * validate the request - no extra call to billing to fill them in.
-     */
     record AllocatedLine(
             UUID feeId,
             String feeType,

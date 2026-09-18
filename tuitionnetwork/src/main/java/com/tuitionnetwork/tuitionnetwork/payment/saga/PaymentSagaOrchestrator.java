@@ -160,13 +160,6 @@ public class PaymentSagaOrchestrator implements ExecutePaymentSagaUseCase {
     private PaymentResultView view(Payment payment, boolean requires3ds, String message) {
         return view(payment, requires3ds, message, null);
     }
-
-    /**
-     * The same view, plus what the provider actually said.
-     *
-     * A null result means there was no provider - a cash payment, or a route that
-     * refused before reaching one.
-     */
     private PaymentResultView view(Payment payment, boolean requires3ds, String message,
                                    CardGatewayPort.Result result) {
         String receiptReference = payment.getStatus() == PaymentStatus.SUCCESSFUL
@@ -179,27 +172,12 @@ public class PaymentSagaOrchestrator implements ExecutePaymentSagaUseCase {
                 payment.getMaskedCardNumber(), receiptReference, message,
                 providerDetail(result));
     }
-
-    /**
-     * The provider's answer, in the provider's own words.
-     *
-     * Everything here came from the response this module already read; nothing is
-     * looked up again. On an unknown outcome most of it is null, and that is the
-     * honest picture - the provider told us almost nothing, which is precisely
-     * why the payment was flagged rather than settled.
-     */
     private static ExecutePaymentSagaUseCase.ProviderDetail providerDetail(
             CardGatewayPort.Result result) {
 
         if (result == null) {
             return null;
         }
-
-        /*
-         * The provider names the product only when it got far enough to charge
-         * one. A null scheme on an approved payment means an account was debited
-         * rather than a card charged - accounts have no scheme.
-         */
         ExecutePaymentSagaUseCase.ProviderDetail.Source source =
                 new ExecutePaymentSagaUseCase.ProviderDetail.Source(
                         result.cardScheme() == null ? "ACCOUNT" : "CARD",

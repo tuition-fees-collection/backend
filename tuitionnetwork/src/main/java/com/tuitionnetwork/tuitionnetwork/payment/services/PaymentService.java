@@ -71,12 +71,6 @@ public class PaymentService implements CreatePaymentUseCase {
         if (existing.isPresent()) {
             log.info("Idempotent replay of key {} for guardian {}",
                     command.idempotencyKey(), caller.guardianId());
-            /*
-             * A replay returns the order as it was created, with its lines read
-             * back from storage rather than from a request that may differ. The
-             * fee names are left out: filling them in would mean a billing call
-             * on the one path whose whole purpose is to do no work.
-             */
             List<CreatePaymentUseCase.AllocatedLine> replayed =
                     allocations.findByPaymentId(existing.get().getId()).stream()
                             .map(row -> new CreatePaymentUseCase.AllocatedLine(
@@ -152,12 +146,6 @@ public class PaymentService implements CreatePaymentUseCase {
 
         log.info("Created payment {} for guardian {} totalling {} {}",
                 payment.getId(), payment.getGuardianId(), total, payment.getCurrency());
-
-        /*
-         * Built from the fee records already loaded to validate the request, so
-         * the response can name each fee without asking billing a second time.
-         * The client posted ids and amounts; billing supplied the rest.
-         */
         List<CreatePaymentUseCase.AllocatedLine> lines = command.feeLines().stream()
                 .map(line -> {
                     BillingPort.PayableFee fee = fees.get(line.feeId());

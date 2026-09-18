@@ -22,41 +22,31 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      # ==========================================
-      # STEP 1: Secret Scanning (TruffleHog)
-      # ==========================================
+
       - name: TruffleHog Secret Scan
         run: |
           docker run --rm -v "$(pwd):/pwd" trufflesecurity/trufflehog:latest filesystem /pwd --json > trufflehog-results.json || true
 
-      # ==========================================
-      # STEP 2: SAST (Semgrep)
-      # ==========================================
+
       - name: Semgrep SAST Scan
         run: |
           python3 -m pip install semgrep
           semgrep scan --config "p/java" --config "p/security-audit" --json --output semgrep-results.json || true
 
-      # ==========================================
-      # STEP 3: Generate CycloneDX SBOM
-      # ==========================================
       - name: Generate CycloneDX SBOM
         run: |
-          mvn org.cyclonedx:cyclonedx-maven-plugin:makeAggregateBom -DschemaVersion=1.5 -Dcyclonedx.outputFormat=json || true
-          # Search for bom.json if created in subdirectories
-          find . -name "bom.json" -exec cp {} ./bom.json \; || true
+          # البحث عن ملف pom.xml في المجلدات الفرعية وتنفيذ التقرير عليه
+          POM_PATH=$(find . -maxdepth 2 -name "pom.xml" | head -n 1)
+          if [ -n "$POM_PATH" ]; then
+            mvn org.cyclonedx:cyclonedx-maven-plugin:makeAggregateBom -f "$POM_PATH" -DschemaVersion=1.5 -Dcyclonedx.outputFormat=json || true
+            find . -name "bom.json" -exec cp {} ./bom.json \; || true
+          fi
 
-      # ==========================================
-      # STEP 4: SCA Scan (Trivy)
-      # ==========================================
       - name: Trivy SCA Scan
         run: |
           curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin
-          trivy fs --scanners vuln --skip-db-update --format json --output trivy-results.json . || true
+          trivy fs --scanners vuln --format json --output trivy-results.json . || true
 
-      # ==========================================
-      # STEP 5: Import Results to DefectDojo
-      # ==========================================
 
       # 5.1 Import TruffleHog
       - name: Import TruffleHog Results to DefectDojo
@@ -106,9 +96,6 @@ jobs:
               -F "file=@trivy-results.json" || true
           fi
 
-      # ==========================================
-      # STEP 6: Save Artifacts
-      # ==========================================
       - name: Upload Security Reports as Artifacts
         uses: actions/upload-artifact@v4
         if: always()

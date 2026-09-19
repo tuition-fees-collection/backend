@@ -53,6 +53,36 @@ class IdentityAccessServiceImplTest {
     }
 
     @Test
+    void shouldAllowBankOfficerFeeSearch() {
+        useActor(RoleCode.BANK_OFFICER, null);
+        assertDoesNotThrow(service::requireFeeSearchAccess);
+        verifyNoInteractions(auditService);
+    }
+
+    @Test
+    void shouldAllowInstitutionOfficerFeeSearchForOwnInstitution() {
+        useActor(RoleCode.INSTITUTION_OFFICER, UUID.randomUUID());
+        assertDoesNotThrow(service::requireFeeSearchAccess);
+        verifyNoInteractions(auditService);
+    }
+
+    @Test
+    void shouldDenyInstitutionOfficerFeeSearchWithoutInstitution() {
+        var actor = useActor(RoleCode.INSTITUTION_OFFICER, null);
+        assertThrows(AccessDeniedException.class, service::requireFeeSearchAccess);
+        verify(auditService).recordAuthenticated(AuditAction.AUTHORIZATION_DENIED, actor);
+    }
+
+    @Test
+    void shouldDenyPayerAndAdminFeeSearch() {
+        for (RoleCode role : new RoleCode[]{RoleCode.ADMIN, RoleCode.PAYER}) {
+            var actor = useActor(role, null);
+            assertThrows(AccessDeniedException.class, service::requireFeeSearchAccess);
+            verify(auditService).recordAuthenticated(AuditAction.AUTHORIZATION_DENIED, actor);
+        }
+    }
+
+    @Test
     void shouldAllowOwnInstitution() {
         UUID institutionId = UUID.randomUUID();
         useActor(RoleCode.INSTITUTION_OFFICER, institutionId);
@@ -186,6 +216,24 @@ class IdentityAccessServiceImplTest {
         assertDoesNotThrow(service::requireCashCollection);
         useActor(RoleCode.PAYER, null);
         assertThrows(AccessDeniedException.class, service::requireCashCollection);
+    }
+
+    @Test
+    void shouldAllowBackofficeStaff() {
+        useActor(RoleCode.ADMIN, null);
+        assertDoesNotThrow(service::requireBackofficeStaff);
+        useActor(RoleCode.BANK_OFFICER, null);
+        assertDoesNotThrow(service::requireBackofficeStaff);
+        verifyNoInteractions(auditService);
+    }
+
+    @Test
+    void shouldDenyPayerAndInstitutionOfficerBackofficeStaffAccess() {
+        for (RoleCode role : new RoleCode[]{RoleCode.PAYER, RoleCode.INSTITUTION_OFFICER}) {
+            var actor = useActor(role, UUID.randomUUID());
+            assertThrows(AccessDeniedException.class, service::requireBackofficeStaff);
+            verify(auditService).recordAuthenticated(AuditAction.AUTHORIZATION_DENIED, actor);
+        }
     }
 
     @Test

@@ -24,7 +24,7 @@ public class InstitutionAdminServiceImpl implements InstitutionAdminService {
     @Override
     @Transactional(readOnly = true)
     public List<InstitutionResponse> getInstitutions() {
-        access.requireAdmin();
+        access.requireBackofficeStaff();
         return repository.findAllInstitutions();
     }
     @Override

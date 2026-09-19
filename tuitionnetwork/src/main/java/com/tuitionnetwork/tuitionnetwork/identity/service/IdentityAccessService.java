@@ -10,7 +10,11 @@ public interface IdentityAccessService {
 
     void requireBankOfficer();
 
+    void requireFeeSearchAccess();
+
     void requireAdmin();
+
+    void requireBackofficeStaff();
 
     void requireInstitutionAccess(UUID institutionId);
 

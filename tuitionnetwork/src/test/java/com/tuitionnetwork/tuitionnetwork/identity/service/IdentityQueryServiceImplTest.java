@@ -2,6 +2,7 @@ package com.tuitionnetwork.tuitionnetwork.identity.service;
 
 import com.tuitionnetwork.tuitionnetwork.identity.domain.*;
 import com.tuitionnetwork.tuitionnetwork.identity.infra.repository.GuardianIdentityLookupRepository;
+import com.tuitionnetwork.tuitionnetwork.identity.infra.repository.StudentIdentityLookupRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.access.AccessDeniedException;
@@ -15,6 +16,7 @@ class IdentityQueryServiceImplTest {
     private IdentityAccessService access;
     private NationalIdHasher hasher;
     private GuardianIdentityLookupRepository repository;
+    private StudentIdentityLookupRepository students;
     private IdentityQueryServiceImpl service;
 
     private AuditService auditService;
@@ -25,7 +27,8 @@ class IdentityQueryServiceImplTest {
         access = mock(IdentityAccessService.class);
         hasher = mock(NationalIdHasher.class);
         repository = mock(GuardianIdentityLookupRepository.class);
-        service = new IdentityQueryServiceImpl(access, hasher, repository, auditService);
+        students = mock(StudentIdentityLookupRepository.class);
+        service = new IdentityQueryServiceImpl(access, hasher, repository, students, auditService);
     }
 
     @Test
@@ -70,7 +73,7 @@ class IdentityQueryServiceImplTest {
         when(repository.findStudentIdsByGuardianId(guardianId)).thenReturn(students);
         assertEquals(new GuardianSearchScope(guardianId, students), service.resolveGuardianSearchScope(id));
         var order = inOrder(access, hasher, repository, auditService);
-        order.verify(access).requireBankOfficer();
+        order.verify(access).requireFeeSearchAccess();
         order.verify(access).currentActor();
         order.verify(hasher).hash(id);
         order.verify(auditService).recordNationalIdLookup(officer, hash);
@@ -81,7 +84,7 @@ class IdentityQueryServiceImplTest {
 
     @Test
     void unauthorizedLookupIsDeniedBeforeHashingOrDatabaseAccess() {
-        doThrow(new AccessDeniedException("Access denied")).when(access).requireBankOfficer();
+        doThrow(new AccessDeniedException("Access denied")).when(access).requireFeeSearchAccess();
         assertThrows(AccessDeniedException.class,
                 () -> service.resolveGuardianSearchScope(new NationalId("29801011234567")));
         verifyNoInteractions(hasher, repository);
@@ -101,5 +104,32 @@ class IdentityQueryServiceImplTest {
         verify(auditService).recordNationalIdLookup(officer, hash);
         verify(repository).findGuardianIdByNationalIdHmac(hash);
         verifyNoMoreInteractions(repository);
+    }
+
+    @Test
+    void institutionOfficerResolvesGuardianUsingHmac() {
+        UUID institutionId = UUID.randomUUID();
+        var officer = new AuthenticatedActor(UUID.randomUUID(), UUID.randomUUID(),
+                ActorType.INSTITUTION_USER, RoleCode.INSTITUTION_OFFICER, institutionId, null);
+        when(access.currentActor()).thenReturn(officer);
+        var id = new NationalId("29801011234567");
+        String hash = "c".repeat(64);
+        UUID guardianId = UUID.randomUUID();
+        Set<UUID> students = Set.of(UUID.randomUUID());
+        when(hasher.hash(id)).thenReturn(hash);
+        when(repository.findGuardianIdByNationalIdHmac(hash)).thenReturn(Optional.of(guardianId));
+        when(repository.findStudentIdsByGuardianId(guardianId)).thenReturn(students);
+        assertEquals(new GuardianSearchScope(guardianId, students), service.resolveGuardianSearchScope(id));
+        verify(access).requireFeeSearchAccess();
+        verify(auditService).recordNationalIdLookup(officer, hash);
+    }
+
+    @Test
+    void findStudentNamesDelegatesToStudentLookup() {
+        UUID studentId = UUID.randomUUID();
+        when(students.findFullNamesByIds(Set.of(studentId)))
+                .thenReturn(java.util.Map.of(studentId, "Nour Khaled Fahmy"));
+        assertEquals("Nour Khaled Fahmy", service.findStudentNames(Set.of(studentId)).get(studentId));
+        verifyNoInteractions(access, hasher, repository, auditService);
     }
 }

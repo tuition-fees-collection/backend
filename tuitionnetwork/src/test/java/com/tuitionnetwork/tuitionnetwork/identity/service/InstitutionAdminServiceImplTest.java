@@ -20,6 +20,7 @@ class InstitutionAdminServiceImplTest {
 
     @Test void nonAdminCannotCallAnyOperation() {
         doThrow(new AccessDeniedException("Access denied")).when(access).requireAdmin();
+        doThrow(new AccessDeniedException("Access denied")).when(access).requireBackofficeStaff();
         assertThrows(AccessDeniedException.class, service::getInstitutions);
         assertThrows(AccessDeniedException.class, () -> service.createInstitution(null));
         assertThrows(AccessDeniedException.class, () -> service.updateInstitution(UUID.randomUUID(), null));
@@ -30,7 +31,7 @@ class InstitutionAdminServiceImplTest {
     @Test void adminCanListInstitutions() {
         when(repository.findAllInstitutions()).thenReturn(List.of());
         assertEquals(List.of(), service.getInstitutions());
-        verify(access).requireAdmin();
+        verify(access).requireBackofficeStaff();
     }
     @Test void creationUsesAuthenticatedAdminProfileId() {
         UUID actorId = UUID.randomUUID();

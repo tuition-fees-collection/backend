@@ -5,10 +5,13 @@ import com.tuitionnetwork.tuitionnetwork.identity.domain.AuthenticatedActor;
 import com.tuitionnetwork.tuitionnetwork.identity.domain.NationalId;
 import com.tuitionnetwork.tuitionnetwork.identity.domain.RoleCode;
 import com.tuitionnetwork.tuitionnetwork.identity.infra.repository.GuardianIdentityLookupRepository;
+import com.tuitionnetwork.tuitionnetwork.identity.infra.repository.StudentIdentityLookupRepository;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import com.tuitionnetwork.tuitionnetwork.identity.domain.AuditAction;
 
+import java.util.Collection;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
@@ -19,6 +22,7 @@ public class IdentityQueryServiceImpl
     private final IdentityAccessService identityAccessService;
     private final NationalIdHasher nationalIdHasher;
     private final GuardianIdentityLookupRepository guardianRepository;
+    private final StudentIdentityLookupRepository studentRepository;
 
     private final AuditService auditService;
 
@@ -26,6 +30,7 @@ public class IdentityQueryServiceImpl
             IdentityAccessService identityAccessService,
             NationalIdHasher nationalIdHasher,
             GuardianIdentityLookupRepository guardianRepository,
+            StudentIdentityLookupRepository studentRepository,
                 AuditService auditService
     ) {
         this.auditService = auditService;
@@ -37,6 +42,7 @@ public class IdentityQueryServiceImpl
 
         this.guardianRepository =
                 guardianRepository;
+        this.studentRepository = studentRepository;
     }
 
     @Override
@@ -67,7 +73,7 @@ public class IdentityQueryServiceImpl
     ) {
 
         identityAccessService
-                .requireBankOfficer();
+                .requireFeeSearchAccess();
 
         AuthenticatedActor actor = identityAccessService.currentActor();
 
@@ -97,5 +103,10 @@ public class IdentityQueryServiceImpl
                 guardianId,
                 studentIds
         );
+    }
+
+    @Override
+    public Map<UUID, String> findStudentNames(Collection<UUID> studentIds) {
+        return studentRepository.findFullNamesByIds(studentIds);
     }
 }

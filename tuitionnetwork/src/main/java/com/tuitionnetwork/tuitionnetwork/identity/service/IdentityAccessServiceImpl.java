@@ -43,6 +43,18 @@ public class IdentityAccessServiceImpl implements IdentityAccessService {
     }
 
     @Override
+    public void requireFeeSearchAccess() {
+        AuthenticatedActor actor = currentActor();
+        if (actor.role() == RoleCode.BANK_OFFICER) {
+            return;
+        }
+        if (actor.role() == RoleCode.INSTITUTION_OFFICER && actor.institutionId() != null) {
+            return;
+        }
+        deny(actor);
+    }
+
+    @Override
     public void requireInstitutionAccess(UUID institutionId) {
         AuthenticatedActor actor = currentActor();
         if (actor.role() != RoleCode.INSTITUTION_OFFICER
@@ -66,6 +78,14 @@ public class IdentityAccessServiceImpl implements IdentityAccessService {
     public void requireAdmin() {
         AuthenticatedActor actor = currentActor();
         if (actor.role() != RoleCode.ADMIN) {
+            deny(actor);
+        }
+    }
+
+    @Override
+    public void requireBackofficeStaff() {
+        AuthenticatedActor actor = currentActor();
+        if (actor.role() != RoleCode.ADMIN && actor.role() != RoleCode.BANK_OFFICER) {
             deny(actor);
         }
     }

@@ -73,12 +73,18 @@ public class EppService {
         return plan;
     }
 
+    @Transactional(readOnly = true)
     public List<EppPlan> findAll() {
-        return eppPlanRepository.findAll();
+        List<EppPlan> plans = eppPlanRepository.findAll();
+        plans.forEach(plan -> plan.getInstalments().size());
+        return plans;
     }
 
+    @Transactional(readOnly = true)
     public EppPlan getPlan(UUID planId) {
-        return eppPlanRepository.findById(planId)
+        EppPlan plan = eppPlanRepository.findById(planId)
                 .orElseThrow(() -> new EppPlanNotFoundException(planId));
+        plan.getInstalments().size();
+        return plan;
     }
 }

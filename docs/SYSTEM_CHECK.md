@@ -1,8 +1,10 @@
 # Full system check — 19 Sep 2026
 
-Checked services, the seeded API walkthrough, both frontend portals, and the default Maven suite.
+Checked services, the seeded API walkthrough (including Youssef / Ahmed / Salma / Heba), MVP user-story API checks, both frontend portals being up, and the default Maven suite.
 
-**Result: pass.** The documented cycle works end to end. Live cash/card pay and a fresh CSV upload were not re-run this pass.
+How to repeat this from the backend repo alone: [RUN_AND_TEST.md](RUN_AND_TEST.md).
+
+**Result: pass.** Walkthrough + user-story scripts were each run **5 times** in a row after a fresh seed. All 10 script runs were green.
 
 ## Services
 
@@ -18,63 +20,45 @@ Checked services, the seeded API walkthrough, both frontend portals, and the def
 
 Flyway history: V1–V7, V9–V11 all successful. There is no V8.
 
-## API walkthrough
+## API walkthrough (5/5)
 
-`./scripts/walkthrough-cycle.sh` — **all checks passed**.
+`./scripts/walkthrough-cycle.sh` — **all checks passed** on every run.
 
 | Actor | What was verified |
 | --- | --- |
-| `nadia` ADMIN | Institutions include Nile Valley and Maadi; daily report; outstanding collections; gateway checks; Karim listed; Laila listed under Nile. |
-| `karim` BANK_OFFICER | Fee search `29805150101023` returns Nour Khaled Fahmy and Malak Hany Sobhy at Nile Valley. Mock lookup returns Mona Samir Abdelrahman. Payment history includes `RCP-2026-WALK0001`. |
-| `laila` INSTITUTION_OFFICER | Same students; fee record; Due / Partial / Paid collections; daily report names; student receipts `RCP-2026-WALK0001`; upload history. |
-| `heba` INSTITUTION_OFFICER | Same national ID search is empty (Maadi isolation). |
+| `nadia` ADMIN | Institutions include Nile Valley and Maadi; daily report; outstanding collections; gateway checks; Karim listed; Laila listed under Nile. Invalid password rejected. |
+| `karim` BANK_OFFICER | Mona `29805150101023` → Nour + Malak. Youssef `30007091301775` → Omar + Farah. Ahmed `29511020204536` → Karim Ahmed Tarek. Salma `29001301202283` → Lina. Heba parent `28809252506666` → Yassin at Maadi. Unknown NID `[]`. Short NID HTTP 400. Mock lookups: Youssef debit/account, Ahmed frozen/blocked, Salma dormant/expired. |
+| `laila` INSTITUTION_OFFICER | Nile students including Youssef’s children; Heba parent search empty; Due / Partial / Paid; receipts `RCP-2026-WALK0001`; upload history. |
+| `heba` INSTITUTION_OFFICER | Mona search empty. Yassin visible on Maadi collections. |
 | `mona` PAYER | `GET /fee-searches/me` returns both children; receipt `RCP-2026-WALK0003`. |
 
-## Portal UI
+## User-story API pass (5/5)
 
-Password for seeded logins: `Admin123!`
+`./scripts/user-story-check.sh` — **all checks passed** on every run (idempotent unpaid cash order for Omar).
 
-### Back office — `nadia`
+Covered: BO-US-01/02/03/04/09/11/12, INST-US-01/03/04/06/07/08, PAYER-US-02/06/07, ADMIN-US-01/02, SYS-US-02/03.
 
-http://localhost:5173/backoffice/login → Overall Dashboard
-
-- Sidebar: Overall Dashboard, Create Institution, Create Officer. Find Fees hidden.
-- KPIs: 3 institutions, **13,500 EGP** collected today, 3 payments, **34,000 EGP** outstanding.
-- Institution filter includes Nile Valley School, Maadi Language School, Closed Nile University.
-- Create Institution and Create Officer forms load.
-- Earlier admin POST created officer **`sara`** (`BANK_OFFICER`, branch `zamalek`, ACTIVE).
-
-### Back office — `karim`
-
-- Lands on Find Fees (Create Institution / Create Officer hidden).
-- Search `29805150101023` → Nour Khaled Fahmy (EGP 23,300) and Malak Hany Sobhy (EGP 20,700), Nile Valley School.
-- Client Overview: **Mona Samir Abdelrahman**, paid this month 13,500 EGP, receipts WALK0001–0003.
-
-### Institution — `laila`
-
-http://localhost:5173/institution/login
-
-- Dashboard collected today **13,500 EGP** / 3 payments.
-- Customers search same NID → both Nile Valley students.
-- Collections Due / Partial / Paid populated (Due includes Malak; Partial is Nour tuition 2026-09 remaining 10,000; Paid has Activities 4,000 and Other 1,500).
-- Student record for Nour; **View receipts** shows WALK0001 / 0002 / 0003 (view only, no pay).
-- Submit dues page loads (CSV template / upload). Not re-uploaded this pass. 2026-10 dues are already present from an earlier upload.
-
-### Institution — `heba`
-
-- Dashboard collected today **0 EGP**, outstanding 0 (no Nile Valley data).
-- API fee search for the same NID is empty.
+Live cash/card/source (`BO-US-05`–`08`, `PAYER-US-04`/`05`) and a fresh CSV upload (`LIVE_UPLOAD=1`) were not looped; they change balances. Opt-in flags are in [RUN_AND_TEST.md](RUN_AND_TEST.md).
 
 ## Maven tests
 
 `POSTGRES_PORT=5433 ./mvnw test` (integration group excluded, as in `pom.xml`)
 
-- **410 tests, 0 failures, 0 errors** across 61 suites.
-- `@Tag("integration")` bank-mock suites were not run. Older surefire files from 16 Sep still show those as failing against a different mock shape; they are stale and excluded.
+- **403 tests, 0 failures, 0 errors**. `BUILD SUCCESS`.
+- `@Tag("integration")` bank-mock suites were not run.
+
+## Seeded mock parents (new this pass)
+
+| National ID | Guardian | Students |
+| --- | --- | --- |
+| `30007091301775` | Youssef Adel Nabil | Omar, Farah (Nile Valley) |
+| `29511020204536` | Ahmed Tarek Mahmoud | Karim Ahmed Tarek |
+| `29001301202283` | Salma Hosny Ibrahim | Lina Salma Hosny |
+| `28809252506666` | Heba Mostafa Zaki | Yassin Mostafa Zaki (Maadi) |
 
 ## Not re-tested this pass
 
-- Live cash / card / source / EPP charge from the UI
+- Live cash / card / source / EPP charge from the UI (decline cards documented in RUN_AND_TEST)
 - Fresh `LIVE_UPLOAD=1` CSV this run
 - Payer UI (there is no payer portal)
 - pgAdmin browsing
@@ -82,6 +66,6 @@ http://localhost:5173/institution/login
 
 ## Notes
 
-- JWT lifetime is 15 minutes; institution session expired once during the UI pass and needed a re-login.
-- Create Officer UI also collects national ID, email, and mobile. The backend create-employee API stores name, branch, role, username, and password only.
+- JWT lifetime is 15 minutes.
+- `GET /api/v1/epp/plans` now loads instalments inside a read-only transaction (was HTTP 500 from a lazy collection).
 - Walkthrough inputs stay in [PORTAL_WALKTHROUGH.md](PORTAL_WALKTHROUGH.md).

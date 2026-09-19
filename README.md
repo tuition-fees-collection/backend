@@ -166,8 +166,11 @@ migration). It wipes previous demo logins and inserts:
 | `heba` | INSTITUTION_OFFICER | `/institution/login` (Maadi Language School) |
 | `mona` | PAYER | API only (`GET /api/v1/fee-searches/me`) |
 
-Password for each: `Admin123!`. Search / lookup National ID: `29805150101023`.
-Then `./scripts/walkthrough-cycle.sh` for the API cycle.
+Password for each: `Admin123!`. Search / lookup National ID: `29805150101023`
+(Mona). Other mock parents: Youssef `30007091301775`, Ahmed `29511020204536`,
+Salma `29001301202283`, Heba `28809252506666`. Then
+`./scripts/walkthrough-cycle.sh` for the API cycle. Full run/test steps:
+[docs/RUN_AND_TEST.md](docs/RUN_AND_TEST.md).
 
 ## How it fits together
 
@@ -277,6 +280,21 @@ as described in [Docker's startup-order documentation](https://docs.docker.com/c
 The pgAdmin server connection is defined inline in Compose, avoiding a host-file
 bind mount. This uses [Compose configs content](https://docs.docker.com/reference/compose-file/configs/)
 and requires Compose 2.23.1 or newer.
+
+## Test the seeded walkthrough
+
+After Compose is up, load demo data and run the API cycle (safe to repeat):
+
+```sh
+docker compose exec -T postgres psql -U tuition -d tuition < scripts/seed-dev-data.sql
+./scripts/walkthrough-cycle.sh
+./scripts/user-story-check.sh
+POSTGRES_PORT=5433 ./mvnw test
+```
+
+National IDs, mock failure cards, and a five-run loop are in
+[docs/RUN_AND_TEST.md](docs/RUN_AND_TEST.md). Portal click-path:
+[docs/PORTAL_WALKTHROUGH.md](docs/PORTAL_WALKTHROUGH.md).
 
 Useful commands, from `tuitionnetwork`:
 

@@ -4,6 +4,8 @@ Two frontend portals (Vite default `http://localhost:5173`). Backend is `http://
 
 There is no payer portal. `mona` is API-only.
 
+How to start the API, seed, and rerun checks: [RUN_AND_TEST.md](RUN_AND_TEST.md).
+
 ## Portal URLs
 
 | Portal | URL | Who logs in |
@@ -52,7 +54,11 @@ Password for every seeded login: `Admin123!`.
 | Parent name | Mona Samir Abdelrahman |
 | Student | Nour Khaled Fahmy — `30103222103442` |
 | Student | Malak Hany Sobhy — `31204010102041` |
-| Frozen lookup (not seeded) | `29511020204536` — Ahmed Tarek Mahmoud |
+| Youssef (debit / account, no EPP) | `30007091301775` — Omar / Farah at Nile Valley |
+| Ahmed (frozen / blocked sources) | `29511020204536` — Karim Ahmed Tarek |
+| Salma (dormant / expired sources) | `29001301202283` — Lina Salma Hosny |
+| Heba parent (Maadi only) | `28809252506666` — Yassin Mostafa Zaki |
+| No fees | `29901011234567` |
 | Nile Valley School id | `b0b0b0b0-0002-4000-8000-000000000001` |
 | Live CSV after seed | `tuitionnetwork/scripts/sample-fee-upload.csv` (period 2026-10) |
 
@@ -74,6 +80,10 @@ Logout, then login `karim` / `Admin123!`
 - Find Fees → search `29805150101023`
 - Expect **Nour Khaled Fahmy** and **Malak Hany Sobhy** (Nile Valley School).
 - Client Overview shows **Mona Samir Abdelrahman** if the bank mock is on `:8000`.
+- Search `30007091301775` → **Omar Youssef Adel** and **Farah Youssef Adel**. Lookup is debit/account only.
+- Search `29511020204536` → **Karim Ahmed Tarek**. Lookup is frozen/blocked.
+- Search `29001301202283` → **Lina Salma Hosny**. Lookup is dormant/expired.
+- Search `28809252506666` → **Yassin Mostafa Zaki** at Maadi.
 
 ### 3. Institution — Nile Valley
 
@@ -82,6 +92,7 @@ Open http://localhost:5173/institution/login
 - User: `laila` / `Admin123!`
 - Dashboard collected-today should be > 0.
 - Customers search: `29805150101023` (same two students).
+- Youssef NID returns Omar / Farah. Heba NID is empty.
 - Collections: Due / Partial / Paid.
 - Reports: student names present.
 - View student receipt (do not pay).
@@ -102,6 +113,7 @@ national_id,fee_type,amount,currency,collection_period,parent_national_id,parent
 Logout, then login `heba` / `Admin123!`
 
 - Customers search `29805150101023` → **empty** (other school).
+- Customers search `28809252506666` → **Yassin Mostafa Zaki**.
 
 ## API check of the same cycle
 
@@ -124,3 +136,9 @@ FRONTEND=http://localhost:<port> ./scripts/walkthrough-cycle.sh
 ```
 
 The script logs in as each seeded user and hits the matching API routes. Payer `mona` is checked on the API only.
+
+User-story mapping (auth, search, grouped fees, unpaid order create, isolation, reports):
+
+```sh
+./scripts/user-story-check.sh
+```

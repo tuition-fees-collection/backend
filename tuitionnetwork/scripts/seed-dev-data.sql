@@ -10,15 +10,23 @@
 --   nadia     ADMIN                 /backoffice/login     dashboard, create institution/officer
 --   karim     BANK_OFFICER          /backoffice/login     find fees, cash pay, client overview
 --   laila     INSTITUTION_OFFICER   /institution/login    Nile Valley School (view student receipts, not pay)
---   heba      INSTITUTION_OFFICER   /institution/login    Maadi Language School (no fees yet)
+--   heba      INSTITUTION_OFFICER   /institution/login    Maadi Language School (Yassin fees)
 --   mona      PAYER                 API only              own students / pay
 --
 -- Mock-aligned national IDs (wit-mock-services GET /api/v1/test-data):
 --   Parent / lookup / search:  29805150101023  Mona Samir Abdelrahman
 --   Student:                   30103222103442  Nour Khaled Fahmy
 --   Student:                   31204010102041  Malak Hany Sobhy
---   Frozen lookup (not seeded):29511020204536  Ahmed Tarek Mahmoud
+--   Parent (debit only, no EPP): 30007091301775  Youssef Adel Nabil
+--     Students: Omar Youssef Adel 31005202112358, Farah Youssef Adel 31011142124688
+--   Parent (frozen/blocked sources): 29511020204536  Ahmed Tarek Mahmoud
+--     Student: Karim Ahmed Tarek 31108120213419
+--   Parent (dormant/expired sources): 29001301202283  Salma Hosny Ibrahim
+--     Student: Lina Salma Hosny 31201181224685
+--   Parent at Maadi (Heba officer isolation): 28809252506666  Heba Mostafa Zaki
+--     Student: Yassin Mostafa Zaki 30903032512350
 -- Nile Valley School id:       b0b0b0b0-0002-4000-8000-000000000001
+-- Maadi Language School id:    b0b0b0b0-0002-4000-8000-000000000002
 -- Reporting date with collections: today (payment settled_at = now())
 -- Live CSV after seed:         scripts/sample-fee-upload.csv  (period 2026-10)
 --
@@ -212,6 +220,108 @@ INSERT INTO identity.auth_account (
 );
 
 -- ---------------------------------------------------------------------------
+-- Other mock-aligned guardians (searchable; not portal logins)
+-- Youssef: happy path with debit/account only (no EPP)
+-- Ahmed: frozen account + blocked Visa (Mastercard still works)
+-- Salma: dormant account + expired card
+-- Heba parent: Maadi-only student so institution isolation has a positive case
+-- ---------------------------------------------------------------------------
+INSERT INTO identity.guardian (id, national_id_hmac, national_id_encrypted, full_name, verified)
+VALUES
+    (
+        'd0d0d0d0-0004-4000-8000-000000000002',
+        'c638a4f9e36ce5d82b302cce1bc0b3e3b3a749bd602fe87ddd9f27bc51b944ff',
+        '\x00'::bytea,
+        'Youssef Adel Nabil',
+        TRUE
+    ),
+    (
+        'd0d0d0d0-0004-4000-8000-000000000003',
+        '84a4cf02384a1168ce4fd6a63c058912dbbc231aae81994bd4b7162eda587957',
+        '\x00'::bytea,
+        'Ahmed Tarek Mahmoud',
+        TRUE
+    ),
+    (
+        'd0d0d0d0-0004-4000-8000-000000000004',
+        'e65f65f99d3d1b8c1e72685af0896eea1ba2479211c173d4d188e1c99f6a7251',
+        '\x00'::bytea,
+        'Salma Hosny Ibrahim',
+        TRUE
+    ),
+    (
+        'd0d0d0d0-0004-4000-8000-000000000005',
+        '3a634b099409ecba3fb10a285b43d0c9c4b27457bfb6603094abe9cf3f7454c4',
+        '\x00'::bytea,
+        'Heba Mostafa Zaki',
+        TRUE
+    );
+
+INSERT INTO identity.student (id, national_id_hmac, full_name, date_of_birth) VALUES
+    (
+        'e0e0e0e0-0005-4000-8000-000000000003',
+        '9aeff807b9e22a6ba9db0cbe9b46ed329d942694ca940ddee97facf7b91f093d',
+        'Omar Youssef Adel',
+        '2010-05-20'
+    ),
+    (
+        'e0e0e0e0-0005-4000-8000-000000000004',
+        'a0eb526ab8e4d2f80d7f24ec3e283097f41b808ee331ec844a01225e083d49bc',
+        'Farah Youssef Adel',
+        '2010-11-14'
+    ),
+    (
+        'e0e0e0e0-0005-4000-8000-000000000005',
+        'c6d71e9e0a990493b17eb36d8cce6269699cea363c7ef4acb7a4d4c4ebbbdfa2',
+        'Karim Ahmed Tarek',
+        '2011-08-12'
+    ),
+    (
+        'e0e0e0e0-0005-4000-8000-000000000006',
+        'f5eb70dd258f603f9524f83fee2061693f50bbf3a1f464e2517e8a333598c544',
+        'Lina Salma Hosny',
+        '2012-01-18'
+    ),
+    (
+        'e0e0e0e0-0005-4000-8000-000000000007',
+        '7b9a93ee8724b81e69e4e04ae9e03a8f4c40a99f69faf3c43d5f81195364b0db',
+        'Yassin Mostafa Zaki',
+        '2009-03-03'
+    );
+
+INSERT INTO identity.guardian_student (guardian_id, student_id, relationship, source) VALUES
+    (
+        'd0d0d0d0-0004-4000-8000-000000000002',
+        'e0e0e0e0-0005-4000-8000-000000000003',
+        'FATHER',
+        'INSTITUTION_IMPORT'
+    ),
+    (
+        'd0d0d0d0-0004-4000-8000-000000000002',
+        'e0e0e0e0-0005-4000-8000-000000000004',
+        'FATHER',
+        'INSTITUTION_IMPORT'
+    ),
+    (
+        'd0d0d0d0-0004-4000-8000-000000000003',
+        'e0e0e0e0-0005-4000-8000-000000000005',
+        'FATHER',
+        'INSTITUTION_IMPORT'
+    ),
+    (
+        'd0d0d0d0-0004-4000-8000-000000000004',
+        'e0e0e0e0-0005-4000-8000-000000000006',
+        'MOTHER',
+        'INSTITUTION_IMPORT'
+    ),
+    (
+        'd0d0d0d0-0004-4000-8000-000000000005',
+        'e0e0e0e0-0005-4000-8000-000000000007',
+        'MOTHER',
+        'INSTITUTION_IMPORT'
+    );
+
+-- ---------------------------------------------------------------------------
 -- Upload history for GET /integration/uploads
 -- ---------------------------------------------------------------------------
 INSERT INTO integration.upload_batch (
@@ -297,6 +407,46 @@ VALUES
         'ACTIVITIES', '2026-09', 'EGP',
         4000.00, 4000.00, 'SETTLED',
         '10101010-0007-4000-8000-000000000001'
+    ),
+    (
+        '20202020-0008-4000-8000-000000000006',
+        'e0e0e0e0-0005-4000-8000-000000000003',
+        'b0b0b0b0-0002-4000-8000-000000000001',
+        'TUITION', '2026-09', 'EGP',
+        6000.00, 0.00, 'OUTSTANDING',
+        NULL
+    ),
+    (
+        '20202020-0008-4000-8000-000000000007',
+        'e0e0e0e0-0005-4000-8000-000000000004',
+        'b0b0b0b0-0002-4000-8000-000000000001',
+        'ACTIVITIES', '2026-09', 'EGP',
+        1500.00, 0.00, 'OUTSTANDING',
+        NULL
+    ),
+    (
+        '20202020-0008-4000-8000-000000000008',
+        'e0e0e0e0-0005-4000-8000-000000000005',
+        'b0b0b0b0-0002-4000-8000-000000000001',
+        'TUITION', '2026-09', 'EGP',
+        5000.00, 0.00, 'OUTSTANDING',
+        NULL
+    ),
+    (
+        '20202020-0008-4000-8000-000000000009',
+        'e0e0e0e0-0005-4000-8000-000000000006',
+        'b0b0b0b0-0002-4000-8000-000000000001',
+        'TUITION', '2026-09', 'EGP',
+        4500.00, 0.00, 'OUTSTANDING',
+        NULL
+    ),
+    (
+        '20202020-0008-4000-8000-000000000010',
+        'e0e0e0e0-0005-4000-8000-000000000007',
+        'b0b0b0b0-0002-4000-8000-000000000002',
+        'TUITION', '2026-09', 'EGP',
+        3000.00, 0.00, 'OUTSTANDING',
+        NULL
     );
 
 -- ---------------------------------------------------------------------------

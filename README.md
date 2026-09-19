@@ -156,7 +156,18 @@ apply migrations to the configured database; use only a local development/test
 database. CI uses a fresh PostgreSQL instance.
 
 Optional sample rows: `tuitionnetwork/scripts/seed-dev-data.sql` (not a Flyway
-migration).
+migration). It wipes previous demo logins and inserts:
+
+| Username | Role | Portal |
+| --- | --- | --- |
+| `nadia` | ADMIN | `/backoffice/login` |
+| `karim` | BANK_OFFICER | `/backoffice/login` |
+| `laila` | INSTITUTION_OFFICER | `/institution/login` (Nile Valley School) |
+| `heba` | INSTITUTION_OFFICER | `/institution/login` (Maadi Language School) |
+| `mona` | PAYER | API only (`GET /api/v1/fee-searches/me`) |
+
+Password for each: `Admin123!`. Search / lookup National ID: `29805150101023`.
+Then `./scripts/walkthrough-cycle.sh` for the API cycle.
 
 ## How it fits together
 

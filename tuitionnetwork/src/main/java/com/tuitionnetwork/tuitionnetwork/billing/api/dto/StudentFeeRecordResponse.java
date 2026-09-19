@@ -8,6 +8,8 @@ import java.util.UUID;
 
 public record StudentFeeRecordResponse (
     UUID studentId,
+    String studentName,
+    String institutionName,
     BigDecimal yearTotal,
     BigDecimal amountPaid,
     BigDecimal amountOutstanding,
@@ -15,6 +17,15 @@ public record StudentFeeRecordResponse (
 ){
     public static StudentFeeRecordResponse from(
         UUID studentId,
+        List<Fee> fees
+    ){
+        return from(studentId, null, null, fees);
+    }
+
+    public static StudentFeeRecordResponse from(
+        UUID studentId,
+        String studentName,
+        String institutionName,
         List<Fee> fees
     ){
         BigDecimal yearTotal=fees.stream().
@@ -34,10 +45,7 @@ public record StudentFeeRecordResponse (
         toList();
 
         return new StudentFeeRecordResponse(
-            studentId, yearTotal, amountPaid, amountOutstanding, feeItems
+            studentId, studentName, institutionName, yearTotal, amountPaid, amountOutstanding, feeItems
         );
     }
 }
-
-    
-

@@ -1,6 +1,7 @@
 package com.tuitionnetwork.tuitionnetwork.billing.service;
 
 import com.tuitionnetwork.tuitionnetwork.billing.domain.Fee;
+import com.tuitionnetwork.tuitionnetwork.billing.infra.BillingInstitutionLookupRepository;
 import com.tuitionnetwork.tuitionnetwork.billing.infra.FeeRepository;
 import com.tuitionnetwork.tuitionnetwork.billing.domain.FeeStatus;
 import com.tuitionnetwork.tuitionnetwork.billing.domain.FeeType;
@@ -25,6 +26,8 @@ import static org.mockito.Mockito.*;
  class FeeServiceTest {
     @Mock 
     private FeeRepository feeRepository;
+    @Mock
+    private BillingInstitutionLookupRepository institutionLookup;
     private FeeService feeService;
     private UUID feeId;
     private UUID studentId;
@@ -33,7 +36,7 @@ import static org.mockito.Mockito.*;
 
     @BeforeEach 
     void settUp(){
-        feeService=new FeeService(feeRepository);
+        feeService=new FeeService(feeRepository, institutionLookup);
         feeId=UUID.randomUUID();
         studentId=UUID.randomUUID();
         institutionId=UUID.randomUUID();
@@ -180,6 +183,17 @@ void getFeesForStudentAndInstitution_ReturnsFees() {
 }
 
             @Test
+            void findFeesForStudentAndInstitution_WhenNoFees_ReturnsEmptyList() {
+                when(feeRepository.findByStudentIdAndInstitutionId(studentId, institutionId))
+                        .thenReturn(List.of());
+
+                List<Fee> result = feeService.findFeesForStudentAndInstitution(studentId, institutionId);
+
+                assertTrue(result.isEmpty());
+                verify(feeRepository).findByStudentIdAndInstitutionId(studentId, institutionId);
+            }
+
+            @Test
             void getFeesForStudentAndInstitution_WhenNoFees_ThrowsException() {
 
                       UUID studentId = UUID.randomUUID();
@@ -285,17 +299,18 @@ void getFeesForStudentAndInstitution_ReturnsFees() {
                      
              }
               @Test
-              void testGetInstitutionCollections_NullInstitutionId() {
-                     IllegalArgumentException exception=assertThrows(
-                        IllegalArgumentException.class,
-                         ()->feeService.getInstitutionCollections(
+              void testGetInstitutionCollections_NullInstitutionIdUsesNetworkQuery() {
+                     when(feeRepository.findNetworkCollections(FeeStatus.OUTSTANDING, null, null))
+                             .thenReturn(List.of());
+
+                     List<Fee> result = feeService.getInstitutionCollections(
                             null,
                              FeeStatus.OUTSTANDING,
                               null,
-                               null));
+                               null);
 
-                               assertEquals( "Institution ID is required", exception.getMessage());
-                                verifyNoInteractions(feeRepository);
+                     assertTrue(result.isEmpty());
+                     verify(feeRepository).findNetworkCollections(FeeStatus.OUTSTANDING, null, null);
              }
 
               @Test

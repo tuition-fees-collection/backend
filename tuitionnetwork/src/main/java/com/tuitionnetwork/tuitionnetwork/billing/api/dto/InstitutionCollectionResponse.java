@@ -11,6 +11,7 @@ import java.util.UUID;
 public record InstitutionCollectionResponse(
     UUID feeId,
     UUID studentId,
+    String studentName,
     FeeType feeType,
     String collectionPeriod,
     BigDecimal amount,
@@ -19,9 +20,14 @@ public record InstitutionCollectionResponse(
     FeeStatus feeStatus
 ) {
     public static InstitutionCollectionResponse from(Fee fee){
+        return from(fee, null);
+    }
+
+    public static InstitutionCollectionResponse from(Fee fee, String studentName){
         return new  InstitutionCollectionResponse(
             fee.getId(),
             fee.getStudentId(),
+            studentName,
             fee.getFeeType(),
             fee.getCollectionPeriod(),
             fee.getAmount(),

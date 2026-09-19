@@ -3,13 +3,16 @@ package com.tuitionnetwork.tuitionnetwork.billing.service;
 
 import org.springframework.stereotype.Service;
 import com.tuitionnetwork.tuitionnetwork.billing.domain.Fee;
+import com.tuitionnetwork.tuitionnetwork.billing.infra.BillingInstitutionLookupRepository;
 import com.tuitionnetwork.tuitionnetwork.billing.infra.FeeRepository;
 import org.springframework.transaction.annotation.Transactional;
 import com.tuitionnetwork.tuitionnetwork.billing.domain.FeeStatus;
 import com.tuitionnetwork.tuitionnetwork.billing.domain.FeeType;
 import org.springframework.dao.OptimisticLockingFailureException;
 
+import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.math.BigDecimal;
 
@@ -20,9 +23,11 @@ import java.math.BigDecimal;
 
 public class FeeService{
     private final FeeRepository feeRepository;
+    private final BillingInstitutionLookupRepository institutionLookup;
 
-    public FeeService(FeeRepository feeRepository){
+    public FeeService(FeeRepository feeRepository, BillingInstitutionLookupRepository institutionLookup){
         this.feeRepository=feeRepository;
+        this.institutionLookup=institutionLookup;
     }
 
     
@@ -74,7 +79,7 @@ public class FeeService{
     
     public List<Fee> getFeesForStudentAndInstitution(UUID studentId,UUID institutionId) {
         List<Fee> fees=
-                feeRepository.findByStudentIdAndInstitutionId(
+                findFeesForStudentAndInstitution(
                         studentId,
                         institutionId
                 );
@@ -87,6 +92,13 @@ public class FeeService{
                 return fees;
    
 }
+
+    public List<Fee> findFeesForStudentAndInstitution(UUID studentId, UUID institutionId) {
+        if (studentId == null || institutionId == null) {
+            return List.of();
+        }
+        return feeRepository.findByStudentIdAndInstitutionId(studentId, institutionId);
+    }
           public Fee settle(UUID feeId,BigDecimal amount,int expectedVersion){
             Fee fee=getPayableFee(feeId);
             int currentVersion=fee.getVersion()==null?0:fee.getVersion();
@@ -135,11 +147,11 @@ public class FeeService{
         FeeType feeType,
         String collectionPeriod 
     ){
-        if(institutionId==null){
-            throw new IllegalArgumentException("Institution ID is required");
-        }
         if(feeStatus==null){
             throw new IllegalArgumentException("Fee status is required");
+        }
+        if (institutionId == null) {
+            return feeRepository.findNetworkCollections(feeStatus, feeType, collectionPeriod);
         }
         return feeRepository.findInstitutionCollections(
             institutionId,
@@ -147,6 +159,10 @@ public class FeeService{
              feeType, 
              collectionPeriod);
        
+    }
+
+    public Map<UUID, String> findInstitutionNames(Collection<UUID> institutionIds) {
+        return institutionLookup.findNamesByIds(institutionIds);
     }
 
 }

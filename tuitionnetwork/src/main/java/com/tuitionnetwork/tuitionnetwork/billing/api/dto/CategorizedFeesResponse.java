@@ -12,11 +12,22 @@ import java.util.stream.Collectors;
 
 public record CategorizedFeesResponse(
     UUID studentId,
+    String studentName,
+    String institutionName,
     Map<FeeType,List<FeeSearchResponse>> feesByType,
     BigDecimal totalOutstandingAmount
 
 ){
     public static CategorizedFeesResponse from(UUID studentId, List<Fee> fees){
+        return from(studentId, null, null, fees);
+    }
+
+    public static CategorizedFeesResponse from(
+            UUID studentId,
+            String studentName,
+            String institutionName,
+            List<Fee> fees
+    ){
         Map<FeeType,List<FeeSearchResponse>> feesByType=fees.stream()
             .collect(Collectors.groupingBy(
                 fee->fee.getFeeType(),
@@ -25,10 +36,6 @@ public record CategorizedFeesResponse(
         BigDecimal totalOutstandingAmount=fees.stream()
             .map(fee->fee.getOutstandingAmount())
             .reduce(BigDecimal.ZERO,(total,amount)->total.add(amount));
-        return new CategorizedFeesResponse(studentId,feesByType,totalOutstandingAmount);
+        return new CategorizedFeesResponse(studentId, studentName, institutionName, feesByType, totalOutstandingAmount);
     }
-   
-
 }
-    
-

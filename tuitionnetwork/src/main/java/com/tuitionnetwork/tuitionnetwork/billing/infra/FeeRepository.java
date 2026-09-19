@@ -98,6 +98,20 @@ public interface FeeRepository extends JpaRepository<Fee,UUID> {
                        @Param("collectionPeriod") String collectionPeriod
                        );
 
+            @Query("""
+                         SELECT f
+                         FROM Fee f
+                         WHERE f.status = :status
+                         AND (:feeType IS NULL OR f.feeType = :feeType)
+                         AND (:collectionPeriod IS NULL OR f.collectionPeriod = :collectionPeriod)
+                         ORDER BY f.studentId, f.feeType
+                    """)
+            List<Fee> findNetworkCollections(
+                       @Param("status") FeeStatus status,
+                       @Param("feeType") FeeType feeType,
+                       @Param("collectionPeriod") String collectionPeriod
+                       );
+
 
 }
     

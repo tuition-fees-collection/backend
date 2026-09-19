@@ -34,7 +34,9 @@ public class DailyCollectionReportService {
         ZoneId zone = ZoneId.of("Africa/Cairo");
         Instant start=date.atStartOfDay(zone).toInstant();
         Instant end=date.plusDays(1).atStartOfDay(zone).toInstant();
-        List<DailyCollectionRecord> records=reportRepository.findDailyCollections(institutionId,start,end);
+        List<DailyCollectionRecord> records=institutionId == null
+                ? reportRepository.findNetworkDailyCollections(start, end)
+                : reportRepository.findDailyCollections(institutionId,start,end);
         BigDecimal totalCollected=records.stream().map(record->record.amountApplied()).reduce(BigDecimal.ZERO,(total,amount)->total.add(amount));
         long paymentCount=records.stream().map(record->record.paymentId()).distinct().count();
         Map<FeeType,BigDecimal> amountByFeeType=records.stream().collect(Collectors.groupingBy(

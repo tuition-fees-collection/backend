@@ -5,6 +5,7 @@ import com.tuitionnetwork.tuitionnetwork.identity.domain.ActorType;
 import com.tuitionnetwork.tuitionnetwork.identity.domain.AuthenticatedActor;
 import com.tuitionnetwork.tuitionnetwork.identity.domain.RoleCode;
 import com.tuitionnetwork.tuitionnetwork.identity.service.IdentityAccessService;
+import com.tuitionnetwork.tuitionnetwork.identity.service.IdentityQueryService;
 import com.tuitionnetwork.tuitionnetwork.payment.domain.PaymentMethod;
 import com.tuitionnetwork.tuitionnetwork.reporting.domain.DailyCollectionRecord;
 import com.tuitionnetwork.tuitionnetwork.reporting.domain.DailyCollectionReport;
@@ -12,6 +13,7 @@ import com.tuitionnetwork.tuitionnetwork.reporting.service.DailyCollectionCsvSer
 import com.tuitionnetwork.tuitionnetwork.reporting.service.DailyCollectionReportService;
 import com.tuitionnetwork.tuitionnetwork.reporting.service.DailyCollectionPdfService;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
@@ -45,10 +47,18 @@ class ReportingControllerWebTest {
     private IdentityAccessService identityAccessService;
 
     @MockitoBean
+    private IdentityQueryService identityQueryService;
+
+    @MockitoBean
     private DailyCollectionCsvService csvService;
 
     @MockitoBean
     private DailyCollectionPdfService pdfService;
+
+    @BeforeEach
+    void stubNames() {
+        when(identityQueryService.findStudentNames(any())).thenReturn(Map.of());
+    }
 
     @Test
     void getDailyCollectionReport_ReturnsInstitutionReport() throws Exception {

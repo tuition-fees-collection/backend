@@ -41,4 +41,28 @@ public interface DailyCollectionReportRepository
                 @Param ("end") Instant end
              );
 
+        @Query("""
+                SELECT new com.tuitionnetwork.tuitionnetwork.reporting.domain.DailyCollectionRecord(
+                 p.id,
+                 f.studentId,
+                 f.feeType,
+                 a.amountApplied,
+                 p.method,
+                 p.settledAt,
+                 p.rrn
+                )
+                FROM PaymentAllocation a, Payment p, Fee f
+                WHERE a.paymentId = p.id
+                AND a.feeId = f.id
+                AND p.status =
+                com.tuitionnetwork.tuitionnetwork.payment.domain.PaymentStatus.SUCCESSFUL
+                AND p.settledAt >= :start
+                AND p.settledAt < :end
+                ORDER BY p.settledAt ASC
+             """)
+             List<DailyCollectionRecord> findNetworkDailyCollections(
+                @Param ("start") Instant start,
+                @Param ("end") Instant end
+             );
+
     }

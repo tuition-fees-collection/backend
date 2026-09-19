@@ -11,6 +11,7 @@ import java.time.Instant;
 
 public record DailyCollectionItemResponse(
     UUID studentId,
+    String studentName,
     FeeType feeType,
     BigDecimal amount,
     PaymentMethod paymentMethod,
@@ -20,8 +21,16 @@ public record DailyCollectionItemResponse(
     public static DailyCollectionItemResponse from(
             DailyCollectionRecord record
     ) {
+        return from(record, null);
+    }
+
+    public static DailyCollectionItemResponse from(
+            DailyCollectionRecord record,
+            String studentName
+    ) {
         return new DailyCollectionItemResponse(
                 record.studentId(),
+                studentName,
                 record.feeType(),
                 record.amountApplied(),
                 record.paymentMethod(),

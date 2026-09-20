@@ -5,7 +5,7 @@ import jakarta.validation.constraints.NotNull;
 
 public record ChangeBackofficeRoleRequest(
 
-        @NotNull
+        @NotNull(message = "Role is required")
         RoleCode role
 ) {
 }

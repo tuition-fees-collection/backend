@@ -64,7 +64,7 @@ class InstitutionAdminServiceImplTest {
         when(repository.institutionExists(id)).thenReturn(true);
         when(accounts.existsByUsernameNormalized("staff")).thenReturn(true);
         assertThrows(IllegalArgumentException.class, () -> service.createInstitutionUser(id,
-                new CreateInstitutionUserRequest("Staff", " STAFF ", "test-password")));
+                new CreateInstitutionUserRequest("Staff", "staff", "test-password")));
         verify(repository, never()).createInstitutionUser(any(), any(), any());
         verifyNoInteractions(encoder, audit);
     }

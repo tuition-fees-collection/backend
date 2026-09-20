@@ -1,7 +1,6 @@
 package com.tuitionnetwork.tuitionnetwork.identity.api.admin;
 
 import com.tuitionnetwork.tuitionnetwork.identity.service.InstitutionAdminService;
-import com.tuitionnetwork.tuitionnetwork.identity.api.AuthenticationErrorResponse;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -34,15 +33,5 @@ public class InstitutionAdminController {
     public InstitutionUserResponse createUser(@PathVariable UUID institutionId,
                                              @Valid @RequestBody CreateInstitutionUserRequest request) {
         return service.createInstitutionUser(institutionId, request);
-    }
-    @ExceptionHandler(IllegalArgumentException.class)
-    @ResponseStatus(HttpStatus.BAD_REQUEST)
-    public AuthenticationErrorResponse invalidRequest() {
-        return new AuthenticationErrorResponse("INVALID_INSTITUTION_REQUEST", "Invalid institution request.");
-    }
-    @ExceptionHandler(org.springframework.dao.DataIntegrityViolationException.class)
-    @ResponseStatus(HttpStatus.CONFLICT)
-    public AuthenticationErrorResponse conflict() {
-        return new AuthenticationErrorResponse("INSTITUTION_CONFLICT", "Institution operation could not be completed.");
     }
 }

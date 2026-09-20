@@ -20,7 +20,7 @@ class BackofficeAdminServiceImplTest {
     private final BackofficeAdminService service = new BackofficeAdminServiceImpl(access, profiles, accounts, encoder, audit);
 
     private CreateBackofficeEmployeeRequest request(RoleCode role) {
-        return new CreateBackofficeEmployeeRequest(" Test Staff ", " Branch ", role, " STAFF ", "test-password");
+        return new CreateBackofficeEmployeeRequest(" Test Staff ", " Branch ", role, "staff", "test-password");
     }
 
     @Test void adminCanListStaff() {

@@ -56,18 +56,4 @@ public class BackofficeAdminController {
                 request
         );
     }
-
-    @ExceptionHandler(IllegalArgumentException.class)
-    @ResponseStatus(HttpStatus.BAD_REQUEST)
-    public com.tuitionnetwork.tuitionnetwork.identity.api.AuthenticationErrorResponse invalidRequest() {
-        return new com.tuitionnetwork.tuitionnetwork.identity.api.AuthenticationErrorResponse(
-                "INVALID_STAFF_REQUEST", "Invalid staff request.");
-    }
-
-    @ExceptionHandler(org.springframework.dao.DataIntegrityViolationException.class)
-    @ResponseStatus(HttpStatus.CONFLICT)
-    public com.tuitionnetwork.tuitionnetwork.identity.api.AuthenticationErrorResponse conflict() {
-        return new com.tuitionnetwork.tuitionnetwork.identity.api.AuthenticationErrorResponse(
-                "STAFF_CONFLICT", "Staff account could not be created or updated.");
-    }
 }

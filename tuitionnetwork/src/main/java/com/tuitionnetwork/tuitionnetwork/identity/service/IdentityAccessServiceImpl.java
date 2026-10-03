@@ -65,6 +65,14 @@ public class IdentityAccessServiceImpl implements IdentityAccessService {
     }
 
     @Override
+    public void requireInstitutionOfficer() {
+        AuthenticatedActor actor = currentActor();
+        if (actor.role() != RoleCode.INSTITUTION_OFFICER || actor.institutionId() == null) {
+            deny(actor);
+        }
+    }
+
+    @Override
     public void requireStudentAccess(UUID studentId) {
         AuthenticatedActor actor = currentActor();
         if (actor.role() != RoleCode.PAYER || actor.actorId() == null || studentId == null) {

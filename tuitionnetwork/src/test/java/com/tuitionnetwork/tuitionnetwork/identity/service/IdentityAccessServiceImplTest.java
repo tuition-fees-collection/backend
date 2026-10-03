@@ -237,6 +237,26 @@ class IdentityAccessServiceImplTest {
     }
 
     @Test
+    void institutionOfficerWithSchoolCanUseChatbot() {
+        useActor(RoleCode.INSTITUTION_OFFICER, UUID.randomUUID());
+        assertDoesNotThrow(service::requireInstitutionOfficer);
+        verifyNoInteractions(auditService);
+    }
+
+    @Test
+    void chatbotDeniesEveryRoleExceptAnInstitutionOfficerBoundToASchool() {
+        var officerWithoutSchool = useActor(RoleCode.INSTITUTION_OFFICER, null);
+        assertThrows(AccessDeniedException.class, service::requireInstitutionOfficer);
+        verify(auditService).recordAuthenticated(AuditAction.AUTHORIZATION_DENIED, officerWithoutSchool);
+
+        for (RoleCode role : new RoleCode[]{RoleCode.ADMIN, RoleCode.PAYER, RoleCode.BANK_OFFICER}) {
+            var actor = useActor(role, UUID.randomUUID());
+            assertThrows(AccessDeniedException.class, service::requireInstitutionOfficer);
+            verify(auditService).recordAuthenticated(AuditAction.AUTHORIZATION_DENIED, actor);
+        }
+    }
+
+    @Test
     void onlyAdminCanManageStaff() {
         useActor(RoleCode.ADMIN, null);
         assertDoesNotThrow(service::requireAdmin);

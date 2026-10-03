@@ -18,6 +18,8 @@ public interface IdentityAccessService {
 
     void requireInstitutionAccess(UUID institutionId);
 
+    void requireInstitutionOfficer();
+
     void requireStudentAccess(UUID studentId);
 
     PaymentCaller authorizePaymentCreation(UUID studentId);
